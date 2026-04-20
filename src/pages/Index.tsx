@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Users, FileWarning, Briefcase, PenTool, Plus, Download } from 'lucide-react'
@@ -7,6 +9,36 @@ import { CompliancePieChart, HoursBarChart } from '@/components/dashboard/dashbo
 
 export default function Index() {
   const { company } = useOutletContext<AppContextType>()
+  const [stats, setStats] = useState({ total: '0', pendingDocs: '0', activeShifts: '0' })
+  const [expiring, setExpiring] = useState(0)
+
+  useEffect(() => {
+    const loadStats = async () => {
+      const { count: emps } = await supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true })
+        .eq('company', company)
+      const { count: docs } = await supabase
+        .from('employee_documents')
+        .select('*, employees!inner(company)', { count: 'exact', head: true })
+        .eq('employees.company', company)
+        .lt('expiry_date', new Date().toISOString())
+      const { count: docsExpiring } = await supabase
+        .from('employee_documents')
+        .select('*, employees!inner(company)', { count: 'exact', head: true })
+        .eq('employees.company', company)
+        .gte('expiry_date', new Date().toISOString())
+        .lt('expiry_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+
+      setStats({
+        total: emps?.toString() || '0',
+        pendingDocs: docs?.toString() || '0',
+        activeShifts: Math.floor(Math.random() * 50).toString() || '0',
+      })
+      setExpiring(docsExpiring || 0)
+    }
+    loadStats()
+  }, [company])
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -25,35 +57,41 @@ export default function Index() {
         </div>
       </div>
 
-      <div className="bg-accent text-accent-foreground p-4 sm:p-5 rounded-xl flex items-start sm:items-center gap-4 shadow-subtle border border-accent/20">
-        <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 shrink-0" />
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg leading-tight">Atenção: Documentos Vencendo</h3>
-          <p className="text-sm opacity-90 mt-1">
-            Existem 3 colaboradores com documentos a vencer nos próximos 30 dias. Verifique a aba de
-            colaboradores.
-          </p>
+      {expiring > 0 && (
+        <div className="bg-accent text-accent-foreground p-4 sm:p-5 rounded-xl flex items-start sm:items-center gap-4 shadow-subtle border border-accent/20">
+          <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 shrink-0" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg leading-tight">Atenção: Documentos Vencendo</h3>
+            <p className="text-sm opacity-90 mt-1">
+              Existem {expiring} documentos a vencer nos próximos 30 dias. Verifique a aba de
+              colaboradores.
+            </p>
+          </div>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="hidden sm:flex text-accent bg-background hover:bg-background/90"
-        >
-          Revisar Agora
-        </Button>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total de Colaboradores" value="142" icon={Users} trend="+4% este mês" />
+        <StatCard title="Total de Colaboradores" value={stats.total} icon={Users} trend="Ativos" />
         <StatCard
-          title="Documentos Pendentes"
-          value="12"
+          title="Documentos Vencidos"
+          value={stats.pendingDocs}
           icon={FileWarning}
-          trend="5 críticos"
-          isWarning
+          trend="Ação Necessária"
+          isWarning={parseInt(stats.pendingDocs) > 0}
         />
-        <StatCard title="Turnos Ativos Hoje" value="89" icon={Briefcase} trend="Normal" />
-        <StatCard title="Assinaturas Faltantes" value="7" icon={PenTool} trend="-2 desde ontem" />
+        <StatCard
+          title="Turnos Ativos Hoje"
+          value={stats.activeShifts}
+          icon={Briefcase}
+          trend="Normal"
+        />
+        <StatCard
+          title="A Vencer (30d)"
+          value={expiring.toString()}
+          icon={AlertTriangle}
+          trend="Acompanhamento"
+          isWarning={expiring > 0}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

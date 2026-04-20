@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useOutletContext } from 'react-router-dom'
+import { AppContextType } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,15 +13,53 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { CalendarDays, Wand2 } from 'lucide-react'
-import { mockScales } from '@/lib/mock'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 export default function WorkScales() {
-  const [scales, setScales] = useState(mockScales)
+  const { company } = useOutletContext<AppContextType>()
+  const [scales, setScales] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
-  const handleAuto6x1 = () => {
+  const currentPeriod = new Date().toISOString().slice(0, 7)
+
+  const fetchScales = async () => {
+    const { data: emps } = await supabase
+      .from('employees')
+      .select('id, name, role')
+      .eq('company', company)
+    const { data: scs } = await supabase.from('work_scales').select('*').eq('period', currentPeriod)
+
+    if (emps) {
+      const formatted = emps.map((emp) => {
+        const empScale = scs?.find((s: any) => s.employee_id === emp.id)
+        return {
+          id: empScale?.id || `new-${emp.id}`,
+          employee_id: emp.id,
+          employeeName: emp.name,
+          role: emp.role,
+          schedule: empScale?.schedule || {
+            Seg: '08:00 - 17:00',
+            Ter: '08:00 - 17:00',
+            Qua: '08:00 - 17:00',
+            Qui: '08:00 - 17:00',
+            Sex: '08:00 - 17:00',
+            Sab: '08:00 - 12:00',
+            Dom: 'Folga',
+          },
+        }
+      })
+      setScales(formatted)
+    }
+  }
+
+  useEffect(() => {
+    fetchScales()
+  }, [company])
+
+  const handleAuto6x1 = async () => {
+    setLoading(true)
     const updated = scales.map((row) => {
       const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom']
       const offDayIndex = Math.floor(Math.random() * 7)
@@ -28,12 +69,26 @@ export default function WorkScales() {
       })
       return { ...row, schedule: newSchedule }
     })
+
+    for (const s of updated) {
+      const { data } = await supabase
+        .from('work_scales')
+        .select('id')
+        .eq('employee_id', s.employee_id)
+        .eq('period', currentPeriod)
+        .single()
+      if (data) {
+        await supabase.from('work_scales').update({ schedule: s.schedule }).eq('id', data.id)
+      } else {
+        await supabase
+          .from('work_scales')
+          .insert({ employee_id: s.employee_id, period: currentPeriod, schedule: s.schedule })
+      }
+    }
+
     setScales(updated)
-    toast({
-      title: 'Escala 6x1 Gerada',
-      description: 'Folgas distribuídas automaticamente garantindo cobertura.',
-      className: 'bg-primary text-primary-foreground border-none',
-    })
+    setLoading(false)
+    toast({ title: 'Escala 6x1 Gerada', description: 'Folgas distribuídas e salvas no banco.' })
   }
 
   const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom']
@@ -45,8 +100,12 @@ export default function WorkScales() {
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Escalas</h1>
           <p className="text-muted-foreground mt-1">Organize as equipes e as regras 6x1</p>
         </div>
-        <Button onClick={handleAuto6x1} className="gap-2 bg-primary hover:bg-primary/90 shadow-md">
-          <Wand2 className="h-4 w-4" /> Auto-Sugerir 6x1
+        <Button
+          onClick={handleAuto6x1}
+          disabled={loading}
+          className="gap-2 bg-primary hover:bg-primary/90 shadow-md"
+        >
+          <Wand2 className="h-4 w-4" /> {loading ? 'Gerando...' : 'Auto-Sugerir 6x1'}
         </Button>
       </div>
 
@@ -69,6 +128,13 @@ export default function WorkScales() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {scales.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-4">
+                    Nenhum colaborador encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
               {scales.map((scale) => (
                 <TableRow key={scale.id} className="hover:bg-muted/30">
                   <TableCell className="font-medium border-r bg-muted/5">

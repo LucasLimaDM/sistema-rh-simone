@@ -1,17 +1,11 @@
 // AVOID UPDATING THIS FILE DIRECTLY. It is automatically generated.
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: '14.1'
   }
   public: {
     Tables: {
@@ -72,67 +66,67 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "catalog_items_acabamento_id_fkey"
-            columns: ["acabamento_id"]
+            foreignKeyName: 'catalog_items_acabamento_id_fkey'
+            columns: ['acabamento_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_aplicacao_id_fkey"
-            columns: ["aplicacao_id"]
+            foreignKeyName: 'catalog_items_aplicacao_id_fkey'
+            columns: ['aplicacao_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_diversos_id_fkey"
-            columns: ["diversos_id"]
+            foreignKeyName: 'catalog_items_diversos_id_fkey'
+            columns: ['diversos_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_estucamento_id_fkey"
-            columns: ["estucamento_id"]
+            foreignKeyName: 'catalog_items_estucamento_id_fkey'
+            columns: ['estucamento_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_mobilizacao_id_fkey"
-            columns: ["mobilizacao_id"]
+            foreignKeyName: 'catalog_items_mobilizacao_id_fkey'
+            columns: ['mobilizacao_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_preparacao_id_fkey"
-            columns: ["preparacao_id"]
+            foreignKeyName: 'catalog_items_preparacao_id_fkey'
+            columns: ['preparacao_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_primer_id_fkey"
-            columns: ["primer_id"]
+            foreignKeyName: 'catalog_items_primer_id_fkey'
+            columns: ['primer_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_regularizacao_id_fkey"
-            columns: ["regularizacao_id"]
+            foreignKeyName: 'catalog_items_regularizacao_id_fkey'
+            columns: ['regularizacao_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "catalog_items_utilizacao_id_fkey"
-            columns: ["utilizacao_id"]
+            foreignKeyName: 'catalog_items_utilizacao_id_fkey'
+            columns: ['utilizacao_id']
             isOneToOne: false
-            referencedRelation: "catalog_stages"
-            referencedColumns: ["id"]
+            referencedRelation: 'catalog_stages'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -283,25 +277,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "email_tracking_followup_id_fkey"
-            columns: ["followup_id"]
+            foreignKeyName: 'email_tracking_followup_id_fkey'
+            columns: ['followup_id']
             isOneToOne: false
-            referencedRelation: "followups"
-            referencedColumns: ["id"]
+            referencedRelation: 'followups'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "email_tracking_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: 'email_tracking_lead_id_fkey'
+            columns: ['lead_id']
             isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "email_tracking_proposal_id_fkey"
-            columns: ["proposal_id"]
+            foreignKeyName: 'email_tracking_proposal_id_fkey'
+            columns: ['proposal_id']
             isOneToOne: false
-            referencedRelation: "proposals"
-            referencedColumns: ["id"]
+            referencedRelation: 'proposals'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -341,11 +335,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "followup_roteiro_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: 'followup_roteiro_lead_id_fkey'
+            columns: ['lead_id']
             isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -379,11 +373,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "followups_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: 'followups_lead_id_fkey'
+            columns: ['lead_id']
             isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -501,11 +495,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "historico_comunicacao_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: 'historico_comunicacao_lead_id_fkey'
+            columns: ['lead_id']
             isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -533,11 +527,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "historico_etapas_lead_id_fkey"
-            columns: ["lead_id"]
+            foreignKeyName: 'historico_etapas_lead_id_fkey'
+            columns: ['lead_id']
             isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -574,25 +568,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "image_bank_folder_id_fkey"
-            columns: ["folder_id"]
+            foreignKeyName: 'image_bank_folder_id_fkey'
+            columns: ['folder_id']
             isOneToOne: false
-            referencedRelation: "image_folders"
-            referencedColumns: ["id"]
+            referencedRelation: 'image_folders'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "image_bank_industria_id_fkey"
-            columns: ["industria_id"]
+            foreignKeyName: 'image_bank_industria_id_fkey'
+            columns: ['industria_id']
             isOneToOne: false
-            referencedRelation: "image_industrias"
-            referencedColumns: ["id"]
+            referencedRelation: 'image_industrias'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "image_bank_revestimento_id_fkey"
-            columns: ["revestimento_id"]
+            foreignKeyName: 'image_bank_revestimento_id_fkey'
+            columns: ['revestimento_id']
             isOneToOne: false
-            referencedRelation: "image_revestimentos"
-            referencedColumns: ["id"]
+            referencedRelation: 'image_revestimentos'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -761,18 +755,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "leads_vendedor_id_fkey"
-            columns: ["vendedor_id"]
+            foreignKeyName: 'leads_vendedor_id_fkey'
+            columns: ['vendedor_id']
             isOneToOne: false
-            referencedRelation: "vendedores"
-            referencedColumns: ["id"]
+            referencedRelation: 'vendedores'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "leads_visita_vendedor_id_fkey"
-            columns: ["visita_vendedor_id"]
+            foreignKeyName: 'leads_visita_vendedor_id_fkey'
+            columns: ['visita_vendedor_id']
             isOneToOne: false
-            referencedRelation: "vendedores"
-            referencedColumns: ["id"]
+            referencedRelation: 'vendedores'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1100,33 +1094,31 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -1135,23 +1127,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -1160,23 +1152,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -1185,36 +1177,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
+    | keyof DefaultSchema['Enums']
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
+    | keyof DefaultSchema['CompositeTypes']
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -1222,7 +1214,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
 
 // ====== DATABASE EXTENDED CONTEXT (auto-generated) ======
 // This section contains actual PostgreSQL column types, constraints, RLS policies,
@@ -1722,9 +1713,9 @@ export const Constants = {
 //     IF p_phone IS NULL OR p_phone = '' THEN
 //       RETURN p_phone;
 //     END IF;
-//     
+//
 //     v_digits := regexp_replace(p_phone, '\D', '', 'g');
-//     
+//
 //     IF length(v_digits) = 11 THEN
 //       RETURN '(' || substr(v_digits, 1, 2) || ') ' || substr(v_digits, 3, 5) || '-' || substr(v_digits, 8, 4);
 //     ELSIF length(v_digits) = 10 THEN
@@ -1735,7 +1726,7 @@ export const Constants = {
 //     END IF;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION get_auth_user_workspaces()
 //   CREATE OR REPLACE FUNCTION public.get_auth_user_workspaces()
 //    RETURNS SETOF uuid
@@ -1743,10 +1734,10 @@ export const Constants = {
 //    STABLE SECURITY DEFINER
 //    SET search_path TO 'public'
 //   AS $function$
-//     SELECT user_id FROM public.vendedores 
+//     SELECT user_id FROM public.vendedores
 //     WHERE email = auth.jwt()->>'email' AND ativo = true;
 //   $function$
-//   
+//
 // FUNCTION get_workspace_users()
 //   CREATE OR REPLACE FUNCTION public.get_workspace_users()
 //    RETURNS SETOF uuid
@@ -1761,7 +1752,7 @@ export const Constants = {
 //     SELECT user_id FROM public.vendedores WHERE email = auth.jwt()->>'email' AND ativo = true
 //     UNION
 //     -- 3. Other vendors' auth IDs in the workspaces I am a vendor in, or workspaces I own
-//     SELECT au.id 
+//     SELECT au.id
 //     FROM auth.users au
 //     JOIN public.vendedores v ON au.email = v.email
 //     WHERE (
@@ -1769,7 +1760,7 @@ export const Constants = {
 //       OR v.user_id = auth.uid()
 //     ) AND v.ativo = true;
 //   $function$
-//   
+//
 // FUNCTION handle_email_followup_completed()
 //   CREATE OR REPLACE FUNCTION public.handle_email_followup_completed()
 //    RETURNS trigger
@@ -1787,7 +1778,7 @@ export const Constants = {
 //       RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION handle_email_opened()
 //   CREATE OR REPLACE FUNCTION public.handle_email_opened()
 //    RETURNS trigger
@@ -1802,42 +1793,42 @@ export const Constants = {
 //   BEGIN
 //       -- Check if it transitioned from false to true
 //       IF NEW.aberto = true AND (OLD.aberto IS NULL OR OLD.aberto = false) THEN
-//           
+//
 //           -- Get the lead's current stage and user_id
 //           SELECT etapa, user_id INTO v_lead_etapa, v_lead_user_id FROM public.leads WHERE id = NEW.lead_id;
-//           
+//
 //           IF v_lead_user_id IS NOT NULL THEN
 //               -- Get ID for the first stage (ordem = 0)
-//               SELECT id INTO v_novo_lead_id FROM public.pipeline_stages 
+//               SELECT id INTO v_novo_lead_id FROM public.pipeline_stages
 //               WHERE user_id = v_lead_user_id AND ordem = 0 LIMIT 1;
-//               
+//
 //               -- Get ID for the second stage (ordem = 1)
-//               SELECT id INTO v_contato_feito_id FROM public.pipeline_stages 
+//               SELECT id INTO v_contato_feito_id FROM public.pipeline_stages
 //               WHERE user_id = v_lead_user_id AND ordem = 1 LIMIT 1;
-//   
+//
 //               -- Move if current stage is the first stage and second stage exists
 //               IF v_lead_etapa = v_novo_lead_id AND v_contato_feito_id IS NOT NULL THEN
 //                   -- Close current history
-//                   UPDATE public.historico_etapas 
-//                   SET data_saida = NOW() 
+//                   UPDATE public.historico_etapas
+//                   SET data_saida = NOW()
 //                   WHERE lead_id = NEW.lead_id AND data_saida IS NULL;
-//                   
+//
 //                   -- Insert new history
-//                   INSERT INTO public.historico_etapas (lead_id, etapa, data_entrada) 
+//                   INSERT INTO public.historico_etapas (lead_id, etapa, data_entrada)
 //                   VALUES (NEW.lead_id, v_contato_feito_id, NOW());
-//                   
+//
 //                   -- Update lead
-//                   UPDATE public.leads 
-//                   SET etapa = v_contato_feito_id, updated_at = NOW() 
+//                   UPDATE public.leads
+//                   SET etapa = v_contato_feito_id, updated_at = NOW()
 //                   WHERE id = NEW.lead_id;
 //               END IF;
 //           END IF;
-//   
+//
 //       END IF;
 //       RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION handle_historico_comunicacao_inserted()
 //   CREATE OR REPLACE FUNCTION public.handle_historico_comunicacao_inserted()
 //    RETURNS trigger
@@ -1851,32 +1842,32 @@ export const Constants = {
 //       v_contato_feito_id text;
 //   BEGIN
 //       SELECT etapa, user_id INTO v_lead_etapa, v_lead_user_id FROM public.leads WHERE id = NEW.lead_id;
-//       
+//
 //       IF v_lead_user_id IS NOT NULL THEN
-//           SELECT id INTO v_novo_lead_id FROM public.pipeline_stages 
+//           SELECT id INTO v_novo_lead_id FROM public.pipeline_stages
 //           WHERE user_id = v_lead_user_id AND ordem = 0 LIMIT 1;
-//           
-//           SELECT id INTO v_contato_feito_id FROM public.pipeline_stages 
+//
+//           SELECT id INTO v_contato_feito_id FROM public.pipeline_stages
 //           WHERE user_id = v_lead_user_id AND ordem = 1 LIMIT 1;
-//   
+//
 //           IF v_lead_etapa = v_novo_lead_id AND v_contato_feito_id IS NOT NULL THEN
-//               UPDATE public.historico_etapas 
-//               SET data_saida = NOW() 
+//               UPDATE public.historico_etapas
+//               SET data_saida = NOW()
 //               WHERE lead_id = NEW.lead_id AND data_saida IS NULL;
-//               
-//               INSERT INTO public.historico_etapas (lead_id, etapa, data_entrada) 
+//
+//               INSERT INTO public.historico_etapas (lead_id, etapa, data_entrada)
 //               VALUES (NEW.lead_id, v_contato_feito_id, NOW());
-//               
-//               UPDATE public.leads 
-//               SET etapa = v_contato_feito_id, updated_at = NOW() 
+//
+//               UPDATE public.leads
+//               SET etapa = v_contato_feito_id, updated_at = NOW()
 //               WHERE id = NEW.lead_id;
 //           END IF;
 //       END IF;
-//   
+//
 //       RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION handle_logical_delete_proposal()
 //   CREATE OR REPLACE FUNCTION public.handle_logical_delete_proposal()
 //    RETURNS trigger
@@ -1892,49 +1883,49 @@ export const Constants = {
 //       IF OLD.arquivado = true THEN
 //           RETURN OLD;
 //       END IF;
-//   
+//
 //       -- Caso contrário, faz o soft delete (arquivamento)
-//       v_novo_numero := CASE 
-//           WHEN OLD.numero NOT LIKE 'ARQ-%' THEN 'ARQ-' || OLD.numero 
-//           ELSE OLD.numero 
+//       v_novo_numero := CASE
+//           WHEN OLD.numero NOT LIKE 'ARQ-%' THEN 'ARQ-' || OLD.numero
+//           ELSE OLD.numero
 //       END;
-//   
-//       UPDATE public.proposals 
-//       SET 
-//         arquivado = true, 
+//
+//       UPDATE public.proposals
+//       SET
+//         arquivado = true,
 //         numero = v_novo_numero
 //       WHERE id = OLD.id;
-//   
+//
 //       -- Atualizar o lead relacionado para a etapa 'Arquivado'
-//       FOR v_lead_id IN 
+//       FOR v_lead_id IN
 //           SELECT id FROM public.leads WHERE numero_proposta ILIKE '%' || OLD.numero || '%' AND user_id = OLD.user_id
 //       LOOP
 //           -- Buscar ou criar a etapa 'Arquivado'
 //           SELECT id INTO v_arquivado_stage_id FROM public.pipeline_stages WHERE user_id = OLD.user_id AND nome ILIKE 'Arquivado' LIMIT 1;
-//           
+//
 //           IF v_arquivado_stage_id IS NULL THEN
-//               INSERT INTO public.pipeline_stages (user_id, nome, ordem) 
-//               VALUES (OLD.user_id, 'Arquivado', 99) 
+//               INSERT INTO public.pipeline_stages (user_id, nome, ordem)
+//               VALUES (OLD.user_id, 'Arquivado', 99)
 //               RETURNING id INTO v_arquivado_stage_id;
 //           END IF;
-//   
+//
 //           -- Mover o lead e atualizar o número da proposta nele
-//           UPDATE public.leads 
-//           SET 
+//           UPDATE public.leads
+//           SET
 //               etapa = v_arquivado_stage_id,
 //               numero_proposta = replace(numero_proposta, OLD.numero, v_novo_numero),
 //               updated_at = NOW()
 //           WHERE id = v_lead_id;
-//   
+//
 //           -- Registrar no histórico de etapas
 //           UPDATE public.historico_etapas SET data_saida = NOW() WHERE lead_id = v_lead_id AND data_saida IS NULL;
 //           INSERT INTO public.historico_etapas (lead_id, etapa, data_entrada) VALUES (v_lead_id, v_arquivado_stage_id, NOW());
 //       END LOOP;
-//   
+//
 //       RETURN NULL;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION handle_new_user_crm_setup()
 //   CREATE OR REPLACE FUNCTION public.handle_new_user_crm_setup()
 //    RETURNS trigger
@@ -1951,9 +1942,9 @@ export const Constants = {
 //       (NEW.id, 'Negociação', 3),
 //       (NEW.id, 'Fechado', 4),
 //       (NEW.id, 'Perdido', 5);
-//       
+//
 //       v_html := '<div style="font-family: Arial, sans-serif; max-width: 600px; margin-top: 20px;"><table cellpadding="0" cellspacing="0" border="0" style="width: 100%;"><tr><td style="width: 140px; padding-right: 15px; vertical-align: middle; text-align: center;">{{logo_empresa}}</td><td style="border-left: 2px solid #006A9C; padding-left: 15px; vertical-align: middle;"><h3 style="margin: 0 0 2px 0; color: #006A9C; font-size: 16px; font-weight: bold; text-transform: uppercase;">{{vendedor_nome}}</h3><p style="margin: 0 0 4px 0; color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">{{vendedor_cargo}}</p><p style="margin: 0 0 8px 0; color: #475569; font-size: 14px;">{{vendedor_telefone}}</p><table cellpadding="0" cellspacing="0" border="0" style="margin-top: 4px;"><tr><td style="padding-right: 10px;"><a href="{{website_url}}" target="_blank" style="text-decoration: none;"><img src="https://img.usecurling.com/i?q=globe&color=blue&shape=fill" width="22" height="22" alt="Site" style="display: block; border: none;" /></a></td><td>{{instagram_link_icon}}</td></tr></table></td></tr></table><div style="background-color: #f1f5f9; padding: 12px; margin-top: 15px; text-align: center; border-radius: 4px;"><p style="margin: 0; color: #334155; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Transformamos seu piso em alto padrão</p></div><div style="margin-top: 10px;">{{imagem_assinatura}}</div></div>';
-//   
+//
 //       INSERT INTO public.user_settings (user_id, assinatura_html, configuracoes_temperatura, configuracoes_alertas) VALUES
 //       (NEW.id, v_html, '{
 //           "hotMinProposalValue": 50000,
@@ -1967,7 +1958,7 @@ export const Constants = {
 //           "dias_inatividade_quente": 5,
 //           "mensagem_alerta_customizada": "Atenção: Este lead não recebe contato há muito tempo. Agende um follow-up para retomá-lo."
 //       }'::jsonb);
-//   
+//
 //       INSERT INTO public.motivos_perda (user_id, nome) VALUES
 //       (NEW.id, 'Preço'),
 //       (NEW.id, 'Concorrência'),
@@ -1975,15 +1966,15 @@ export const Constants = {
 //       (NEW.id, 'Timing Inadequado'),
 //       (NEW.id, 'Produto Inadequado'),
 //       (NEW.id, 'Outros');
-//   
+//
 //       -- Insert default photo template with robust table layout
 //       INSERT INTO public.email_templates (user_id, titulo, assunto, conteudo) VALUES
 //       (NEW.id, 'Apresentação com Fotos (Otimizado)', 'Nossos Projetos Recentes', '<p>Olá,</p><p>Gostaríamos de compartilhar alguns de nossos projetos recentes para sua referência.</p><table cellpadding="0" cellspacing="0" border="0" width="100%" style="width: 100%; max-width: 600px; margin: 20px 0;"><tr><td align="center" style="text-align: center; padding: 5px;"><img src="https://img.usecurling.com/p/200/200?q=floor" width="180" style="display: block; width: 100%; max-width: 180px; border-radius: 4px;" alt="Projeto 1"/></td><td align="center" style="text-align: center; padding: 5px;"><img src="https://img.usecurling.com/p/200/200?q=epoxy" width="180" style="display: block; width: 100%; max-width: 180px; border-radius: 4px;" alt="Projeto 2"/></td><td align="center" style="text-align: center; padding: 5px;"><img src="https://img.usecurling.com/p/200/200?q=concrete" width="180" style="display: block; width: 100%; max-width: 180px; border-radius: 4px;" alt="Projeto 3"/></td></tr></table><p>Ficamos à disposição.</p>');
-//   
+//
 //       RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION handle_roteiro_email_completed()
 //   CREATE OR REPLACE FUNCTION public.handle_roteiro_email_completed()
 //    RETURNS trigger
@@ -1998,21 +1989,21 @@ export const Constants = {
 //       RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION is_admin()
 //   CREATE OR REPLACE FUNCTION public.is_admin()
 //    RETURNS boolean
 //    LANGUAGE sql
 //    STABLE SECURITY DEFINER
 //   AS $function$
-//       SELECT 
+//       SELECT
 //         -- Workspace owner is an admin
 //         EXISTS (SELECT 1 FROM public.user_settings WHERE user_id = auth.uid())
-//         OR 
+//         OR
 //         -- Invited user with admin role
 //         EXISTS (SELECT 1 FROM public.vendedores WHERE email = auth.jwt()->>'email' AND role = 'admin' AND ativo = true);
 //     $function$
-//   
+//
 // FUNCTION merge_leads(uuid, uuid, jsonb)
 //   CREATE OR REPLACE FUNCTION public.merge_leads(p_target_lead_id uuid, p_source_lead_id uuid, p_merged_data jsonb)
 //    RETURNS void
@@ -2028,20 +2019,20 @@ export const Constants = {
 //       IF v_target_created_at IS NULL THEN
 //           RAISE EXCEPTION 'Target lead not found or not authorized.';
 //       END IF;
-//   
+//
 //       -- Verify source lead exists and user has access (RLS applies)
 //       SELECT created_at INTO v_source_created_at FROM public.leads WHERE id = p_source_lead_id;
 //       IF v_source_created_at IS NULL THEN
 //           RAISE EXCEPTION 'Source lead not found or not authorized.';
 //       END IF;
-//   
+//
 //       -- Determine the oldest creation date to preserve history
 //       IF v_source_created_at < v_target_created_at THEN
 //           v_oldest_created_at := v_source_created_at;
 //       ELSE
 //           v_oldest_created_at := v_target_created_at;
 //       END IF;
-//   
+//
 //       -- Update Target Lead with all fields from jsonb
 //       -- We use COALESCE for required fields to prevent null constraint violations
 //       UPDATE public.leads
@@ -2070,19 +2061,19 @@ export const Constants = {
 //           created_at = v_oldest_created_at,
 //           updated_at = NOW()
 //       WHERE id = p_target_lead_id;
-//   
+//
 //       -- Reassign related records safely
 //       UPDATE public.historico_comunicacao SET lead_id = p_target_lead_id WHERE lead_id = p_source_lead_id;
 //       UPDATE public.historico_etapas SET lead_id = p_target_lead_id WHERE lead_id = p_source_lead_id;
 //       UPDATE public.followups SET lead_id = p_target_lead_id WHERE lead_id = p_source_lead_id;
 //       UPDATE public.followup_roteiro SET lead_id = p_target_lead_id WHERE lead_id = p_source_lead_id;
 //       UPDATE public.email_tracking SET lead_id = p_target_lead_id WHERE lead_id = p_source_lead_id;
-//   
+//
 //       -- Delete Source Lead
 //       DELETE FROM public.leads WHERE id = p_source_lead_id;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION prevent_update_archived_proposal()
 //   CREATE OR REPLACE FUNCTION public.prevent_update_archived_proposal()
 //    RETURNS trigger
@@ -2096,7 +2087,7 @@ export const Constants = {
 //     RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION restrict_user_settings_update()
 //   CREATE OR REPLACE FUNCTION public.restrict_user_settings_update()
 //    RETURNS trigger
@@ -2116,7 +2107,7 @@ export const Constants = {
 //       RETURN NEW;
 //     END;
 //     $function$
-//   
+//
 // FUNCTION restrict_vendedores_role_update()
 //   CREATE OR REPLACE FUNCTION public.restrict_vendedores_role_update()
 //    RETURNS trigger
@@ -2132,7 +2123,7 @@ export const Constants = {
 //       RETURN NEW;
 //     END;
 //     $function$
-//   
+//
 // FUNCTION trigger_gerar_roteiro_webhook()
 //   CREATE OR REPLACE FUNCTION public.trigger_gerar_roteiro_webhook()
 //    RETURNS trigger
@@ -2160,17 +2151,17 @@ export const Constants = {
 //         'old_record', null
 //       );
 //     END IF;
-//     
+//
 //     PERFORM net.http_post(
 //       url := request_url,
 //       headers := '{"Content-Type": "application/json"}'::jsonb,
 //       body := payload
 //     );
-//     
+//
 //     RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION trigger_marketing_webhook()
 //   CREATE OR REPLACE FUNCTION public.trigger_marketing_webhook()
 //    RETURNS trigger
@@ -2186,7 +2177,7 @@ export const Constants = {
 //       IF NEW.etapa IS NOT DISTINCT FROM OLD.etapa AND NEW.temperatura IS NOT DISTINCT FROM OLD.temperatura THEN
 //         RETURN NEW;
 //       END IF;
-//   
+//
 //       payload := jsonb_build_object(
 //         'type', TG_OP,
 //         'table', TG_TABLE_NAME,
@@ -2203,17 +2194,17 @@ export const Constants = {
 //         'old_record', null
 //       );
 //     END IF;
-//   
+//
 //     PERFORM net.http_post(
 //       url := request_url,
 //       headers := '{"Content-Type": "application/json"}'::jsonb,
 //       body := payload
 //     );
-//   
+//
 //     RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 // FUNCTION update_leads_updated_at_column()
 //   CREATE OR REPLACE FUNCTION public.update_leads_updated_at_column()
 //    RETURNS trigger
@@ -2224,7 +2215,7 @@ export const Constants = {
 //       RETURN NEW;
 //   END;
 //   $function$
-//   
+//
 
 // --- TRIGGERS ---
 // Table: email_tracking
@@ -2261,4 +2252,3 @@ export const Constants = {
 //   CREATE INDEX idx_leads_email ON public.leads USING btree (email)
 //   CREATE INDEX idx_leads_telefone ON public.leads USING btree (telefone)
 //   CREATE INDEX idx_leads_visita_vendedor ON public.leads USING btree (visita_vendedor_id)
-

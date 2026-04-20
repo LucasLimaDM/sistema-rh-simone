@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import {
   SidebarProvider,
   Sidebar,
@@ -24,6 +26,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Bell,
   Briefcase,
   CalendarDays,
@@ -35,8 +43,6 @@ import {
   Clock,
 } from 'lucide-react'
 import { Company, AppContextType } from '@/lib/types'
-import { mockEmployees } from '@/lib/mock'
-
 const navItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Colaboradores', url: '/colaboradores', icon: Users },
@@ -48,10 +54,46 @@ const navItems = [
 export default function Layout() {
   const [company, setCompany] = useState<Company>('Primer Pisos')
   const location = useLocation()
+  const { user, signOut } = useAuth()
+  const [profile, setProfile] = useState<any>(null)
+  const [expiringDocs, setExpiringDocs] = useState<any[]>([])
 
-  const expiringDocs = mockEmployees.filter(
-    (e) => e.status === 'expiring' || e.status === 'expired',
-  )
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('hr_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setProfile(data)
+        })
+    }
+  }, [user])
+
+  useEffect(() => {
+    const fetchDocs = async () => {
+      const { data } = await supabase
+        .from('employee_documents')
+        .select('*, employees!inner(name, company)')
+        .eq('employees.company', company)
+        .lt('expiry_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+
+      if (data) {
+        const formatted = data.map((d: any) => {
+          const isExpired = new Date(d.expiry_date) < new Date()
+          return {
+            id: d.id,
+            name: d.employees.name,
+            type: d.document_type,
+            status: isExpired ? 'expired' : 'expiring',
+          }
+        })
+        setExpiringDocs(formatted)
+      }
+    }
+    fetchDocs()
+  }, [company])
 
   return (
     <SidebarProvider>
@@ -150,13 +192,30 @@ export default function Layout() {
 
               <div className="flex items-center gap-3 border-l pl-4">
                 <div className="hidden md:flex flex-col items-end">
-                  <span className="text-sm font-semibold leading-none">Admin</span>
-                  <span className="text-xs text-muted-foreground">Coordenador RH</span>
+                  <span className="text-sm font-semibold leading-none">
+                    {profile?.name || 'Usuário'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {profile?.role || 'Acesso Limitado'}
+                  </span>
                 </div>
-                <Avatar className="h-9 w-9 border-2 border-primary/20">
-                  <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1" />
-                  <AvatarFallback>AD</AvatarFallback>
-                </Avatar>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="h-9 w-9 border-2 border-primary/20 cursor-pointer">
+                      <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=female&seed=1" />
+                      <AvatarFallback>{profile?.name?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      className="text-destructive cursor-pointer"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sair
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </header>

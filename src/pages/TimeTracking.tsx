@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useOutletContext } from 'react-router-dom'
+import { AppContextType } from '@/lib/types'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,23 +15,92 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog'
 import { Clock, Send, Download } from 'lucide-react'
-import { mockTimeTracks } from '@/lib/mock'
 import { useToast } from '@/hooks/use-toast'
 
 export default function TimeTracking() {
+  const { company } = useOutletContext<AppContextType>()
+  const [tracks, setTracks] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
+  const [selectedEmp, setSelectedEmp] = useState('')
+  const [in1, setIn1] = useState('08:00')
+  const [out1, setOut1] = useState('12:00')
+  const [in2, setIn2] = useState('13:00')
+  const [out2, setOut2] = useState('17:00')
+  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
-  const handleSave = () => {
-    toast({ title: 'Ponto Registrado', description: 'O registro de horas foi salvo com sucesso.' })
+  const fetchTracks = async () => {
+    const { data } = await supabase
+      .from('time_tracks')
+      .select('*, employees!inner(name, company)')
+      .eq('employees.company', company)
+      .order('track_date', { ascending: false })
+      .limit(50)
+    if (data) setTracks(data)
+  }
+
+  useEffect(() => {
+    fetchTracks()
+    supabase
+      .from('employees')
+      .select('id, name')
+      .eq('company', company)
+      .then(({ data }) => {
+        if (data) setEmployees(data)
+      })
+  }, [company])
+
+  const handleSave = async () => {
+    if (!selectedEmp)
+      return toast({
+        title: 'Atenção',
+        description: 'Selecione um colaborador',
+        variant: 'destructive',
+      })
+    setLoading(true)
+
+    const t1 =
+      (new Date(`1970-01-01T${out1}:00Z`).getTime() - new Date(`1970-01-01T${in1}:00Z`).getTime()) /
+      3600000
+    const t2 =
+      (new Date(`1970-01-01T${out2}:00Z`).getTime() - new Date(`1970-01-01T${in2}:00Z`).getTime()) /
+      3600000
+    const totalHours = (t1 > 0 ? t1 : 0) + (t2 > 0 ? t2 : 0)
+
+    const { error } = await supabase.from('time_tracks').insert({
+      employee_id: selectedEmp,
+      track_date: new Date().toISOString().split('T')[0],
+      in1,
+      out1,
+      in2,
+      out2,
+      total_hours: totalHours.toFixed(2),
+    })
+
+    if (!error) {
+      toast({
+        title: 'Ponto Registrado',
+        description: 'O registro de horas foi salvo com sucesso.',
+      })
+      fetchTracks()
+      setSelectedEmp('')
+    }
+    setLoading(false)
   }
 
   return (
@@ -48,25 +120,60 @@ export default function TimeTracking() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 items-end">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Colaborador</Label>
+              <Select value={selectedEmp} onValueChange={setSelectedEmp}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Entrada</Label>
-              <Input type="time" defaultValue="08:00" className="font-mono" />
+              <Input
+                type="time"
+                value={in1}
+                onChange={(e) => setIn1(e.target.value)}
+                className="font-mono"
+              />
             </div>
             <div className="space-y-2">
               <Label>Ida Almoço</Label>
-              <Input type="time" defaultValue="12:00" className="font-mono" />
+              <Input
+                type="time"
+                value={out1}
+                onChange={(e) => setOut1(e.target.value)}
+                className="font-mono"
+              />
             </div>
             <div className="space-y-2">
               <Label>Volta Almoço</Label>
-              <Input type="time" defaultValue="13:00" className="font-mono" />
+              <Input
+                type="time"
+                value={in2}
+                onChange={(e) => setIn2(e.target.value)}
+                className="font-mono"
+              />
             </div>
             <div className="space-y-2">
               <Label>Saída</Label>
-              <Input type="time" defaultValue="17:00" className="font-mono" />
+              <Input
+                type="time"
+                value={out2}
+                onChange={(e) => setOut2(e.target.value)}
+                className="font-mono"
+              />
             </div>
-            <Button onClick={handleSave} className="w-full">
-              Registrar
+            <Button onClick={handleSave} disabled={loading} className="w-full md:col-span-6 mt-2">
+              {loading ? 'Salvando...' : 'Registrar Ponto'}
             </Button>
           </div>
         </CardContent>
@@ -88,13 +195,22 @@ export default function TimeTracking() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTimeTracks.map((track) => (
+              {tracks.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-4">
+                    Nenhum registro encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
+              {tracks.map((track) => (
                 <TableRow key={track.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">{track.date}</TableCell>
-                  <TableCell>{track.employeeName}</TableCell>
-                  <TableCell className="font-mono text-xs">{track.in1}</TableCell>
-                  <TableCell className="font-mono text-xs">{track.out2}</TableCell>
-                  <TableCell className="font-bold text-primary">{track.totalHours}</TableCell>
+                  <TableCell className="font-medium">
+                    {new Date(track.track_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                  </TableCell>
+                  <TableCell>{track.employees?.name}</TableCell>
+                  <TableCell className="font-mono text-xs">{track.in1?.slice(0, 5)}</TableCell>
+                  <TableCell className="font-mono text-xs">{track.out2?.slice(0, 5)}</TableCell>
+                  <TableCell className="font-bold text-primary">{track.total_hours}h</TableCell>
                 </TableRow>
               ))}
             </TableBody>

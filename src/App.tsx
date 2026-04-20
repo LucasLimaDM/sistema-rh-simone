@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -9,23 +9,45 @@ import TimeTracking from './pages/TimeTracking'
 import WorkScales from './pages/WorkScales'
 import Users from './pages/Users'
 import NotFound from './pages/NotFound'
+import Login from './pages/Login'
+import { AuthProvider, useAuth } from './hooks/use-auth'
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="flex h-screen items-center justify-center">Carregando...</div>
+  if (!user) return <Navigate to="/login" />
+  return <>{children}</>
+}
+
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/login" element={<Login />} />
+    <Route
+      element={
+        <ProtectedRoute>
+          <Layout />
+        </ProtectedRoute>
+      }
+    >
+      <Route path="/" element={<Index />} />
+      <Route path="/colaboradores" element={<Employees />} />
+      <Route path="/ponto" element={<TimeTracking />} />
+      <Route path="/escalas" element={<WorkScales />} />
+      <Route path="/usuarios" element={<Users />} />
+    </Route>
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+)
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Index />} />
-          <Route path="/colaboradores" element={<Employees />} />
-          <Route path="/ponto" element={<TimeTracking />} />
-          <Route path="/escalas" element={<WorkScales />} />
-          <Route path="/usuarios" element={<Users />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AppRoutes />
+      </TooltipProvider>
+    </AuthProvider>
   </BrowserRouter>
 )
 

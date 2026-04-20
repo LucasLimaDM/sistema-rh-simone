@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -15,16 +16,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { mockUsers } from '@/lib/mock'
 import { Role } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 import { ShieldCheck } from 'lucide-react'
 
 export default function Users() {
-  const [users, setUsers] = useState(mockUsers)
+  const [users, setUsers] = useState<any[]>([])
   const { toast } = useToast()
 
-  const handleRoleChange = (userId: string, newRole: Role) => {
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    const { data } = await supabase.from('hr_profiles').select('*').order('name')
+    if (data) setUsers(data)
+  }
+
+  const handleRoleChange = async (userId: string, newRole: Role) => {
+    await supabase.from('hr_profiles').update({ role: newRole }).eq('id', userId)
     setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)))
     toast({ title: 'Permissões Atualizadas', description: 'O acesso do usuário foi modificado.' })
   }

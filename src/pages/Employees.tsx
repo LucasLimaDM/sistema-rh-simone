@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { mockEmployees } from '@/lib/mock'
+import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,13 +31,44 @@ import { cn } from '@/lib/utils'
 export default function Employees() {
   const { company } = useOutletContext<AppContextType>()
   const [search, setSearch] = useState('')
+  const [employees, setEmployees] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
+  const fetchEmployees = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('employees')
+      .select('*, employee_documents(*)')
+      .eq('company', company)
+      .order('name', { ascending: true })
+
+    if (data) {
+      const formatted = data.map((emp) => {
+        const docs = emp.employee_documents || []
+        let status = 'up-to-date'
+        docs.forEach((d: any) => {
+          if (!d.expiry_date) return
+          const exp = new Date(d.expiry_date)
+          const now = new Date()
+          if (exp < now) status = 'expired'
+          else if (exp < new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) && status !== 'expired')
+            status = 'expiring'
+        })
+        return { ...emp, contract: emp.contract_type, status }
+      })
+      setEmployees(formatted)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchEmployees()
+  }, [company])
+
   const filtered = useMemo(() => {
-    return mockEmployees.filter(
-      (e) => e.company === company && e.name.toLowerCase().includes(search.toLowerCase()),
-    )
-  }, [company, search])
+    return employees.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
+  }, [employees, search])
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -47,7 +78,11 @@ export default function Employees() {
           <p className="text-muted-foreground mt-1">Gerencie os funcionários da {company}</p>
         </div>
         <EmployeeFormSheet
-          onSave={() => toast({ title: 'Sucesso', description: 'Colaborador salvo com sucesso.' })}
+          company={company}
+          onSave={() => {
+            fetchEmployees()
+            toast({ title: 'Sucesso', description: 'Colaborador salvo com sucesso.' })
+          }}
         />
       </div>
 
@@ -97,12 +132,20 @@ export default function Employees() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && (
+              {loading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum colaborador encontrado.
+                    Carregando...
                   </TableCell>
                 </TableRow>
+              ) : (
+                filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhum colaborador encontrado.
+                    </TableCell>
+                  </TableRow>
+                )
               )}
             </TableBody>
           </Table>
@@ -128,8 +171,15 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function EmployeeFormSheet({ onSave }: { onSave: () => void }) {
+function EmployeeFormSheet({ company, onSave }: { company: string; onSave: () => void }) {
+  const [name, setName] = useState('')
+  const [cpf, setCpf] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [role, setRole] = useState('')
+  const [asoDate, setAsoDate] = useState('')
+  const [nr35Date, setNr35Date] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
 
   const isUnder18 = useMemo(() => {
     if (!birthDate) return false
@@ -137,8 +187,44 @@ function EmployeeFormSheet({ onSave }: { onSave: () => void }) {
     return age < 18
   }, [birthDate])
 
+  const handleSave = async () => {
+    setLoading(true)
+    const { data: emp, error } = await supabase
+      .from('employees')
+      .insert({
+        company,
+        name,
+        cpf,
+        birth_date: birthDate,
+        role: role || 'Colaborador',
+        contract_type: 'CLT',
+      })
+      .select()
+      .single()
+
+    if (emp) {
+      const docs = []
+      if (asoDate) docs.push({ employee_id: emp.id, document_type: 'ASO', expiry_date: asoDate })
+      if (nr35Date)
+        docs.push({ employee_id: emp.id, document_type: 'NR-35', expiry_date: nr35Date })
+
+      if (docs.length > 0) {
+        await supabase.from('employee_documents').insert(docs)
+      }
+      onSave()
+      setOpen(false)
+      setName('')
+      setCpf('')
+      setBirthDate('')
+      setRole('')
+      setAsoDate('')
+      setNr35Date('')
+    }
+    setLoading(false)
+  }
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button className="gap-2 shadow-sm">
           <Plus className="h-4 w-4" /> Novo Colaborador
@@ -157,12 +243,20 @@ function EmployeeFormSheet({ onSave }: { onSave: () => void }) {
             </h4>
             <div className="space-y-2">
               <Label>Nome Completo</Label>
-              <Input placeholder="Ex: João da Silva" />
+              <Input
+                placeholder="Ex: João da Silva"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>CPF</Label>
-                <Input placeholder="000.000.000-00" />
+                <Input
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Data de Nascimento</Label>
@@ -190,28 +284,36 @@ function EmployeeFormSheet({ onSave }: { onSave: () => void }) {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium text-sm">ASO</span>
                 </div>
-                <Input type="date" className="w-[150px] h-8 text-sm" />
+                <Input
+                  type="date"
+                  className="w-[150px] h-8 text-sm"
+                  value={asoDate}
+                  onChange={(e) => setAsoDate(e.target.value)}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium text-sm">NR-35</span>
                 </div>
-                <Input type="date" className="w-[150px] h-8 text-sm" />
+                <Input
+                  type="date"
+                  className="w-[150px] h-8 text-sm"
+                  value={nr35Date}
+                  onChange={(e) => setNr35Date(e.target.value)}
+                />
               </div>
             </div>
           </div>
         </div>
 
         <SheetFooter className="mt-4">
-          <SheetClose asChild>
-            <Button variant="outline">Cancelar</Button>
-          </SheetClose>
-          <SheetClose asChild>
-            <Button disabled={isUnder18} onClick={onSave}>
-              Salvar Colaborador
-            </Button>
-          </SheetClose>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button disabled={isUnder18 || !name || loading} onClick={handleSave}>
+            {loading ? 'Salvando...' : 'Salvar Colaborador'}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
