@@ -59,10 +59,12 @@ export default function Layout() {
         <Sidebar variant="inset" className="border-r border-border">
           <SidebarHeader className="flex items-center justify-center py-6">
             <div className="flex items-center gap-2 px-2">
-              <div className="bg-primary p-2 rounded-lg text-primary-foreground">
-                <Briefcase className="h-6 w-6" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-primary">TiqueTaquê</span>
+              <img
+                src="https://www.dropbox.com/scl/fi/uif2udurshp3vgx495fv9/Logo-Primer-Pisos-leve.jpg?rlkey=l0e8y7sr580cmgg798b0aafiq&raw=1"
+                alt="Primer Pisos Logo"
+                className="h-10 w-auto rounded-md object-contain"
+              />
+              <span className="text-xl font-bold tracking-tight text-primary">Primer Pisos</span>
             </div>
           </SidebarHeader>
           <SidebarContent>
