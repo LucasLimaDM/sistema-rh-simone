@@ -14,10 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, Plus, UserCircle, Trash2, Edit2 } from 'lucide-react'
+import { Search, Plus, UserCircle, Trash2, Edit2, Send } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
+import { Badge } from '@/components/ui/badge'
 
 export default function Employees() {
   const { company } = useOutletContext<AppContextType>()
@@ -102,6 +103,36 @@ export default function Employees() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
   }
 
+  const handleSendInvite = async (emp: any) => {
+    if (!emp.email) {
+      return toast({
+        title: 'Erro',
+        description: 'O colaborador precisa ter um e-mail cadastrado.',
+        variant: 'destructive',
+      })
+    }
+
+    try {
+      toast({ title: 'Enviando convite...' })
+      const { error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          employee_id: emp.id,
+          email: emp.email,
+          name: emp.name,
+          role: emp.role,
+          company: emp.company,
+        },
+      })
+
+      if (error) throw error
+
+      toast({ title: 'Sucesso', description: 'Convite enviado com sucesso!' })
+      fetchEmployees()
+    } catch (e: any) {
+      toast({ title: 'Erro ao enviar convite', description: e.message, variant: 'destructive' })
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -158,7 +189,8 @@ export default function Employees() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Vínculo</TableHead>
                 <TableHead>Cargo</TableHead>
-                <TableHead>Status Documentos</TableHead>
+                <TableHead>Acesso</TableHead>
+                <TableHead>Documentos</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -193,10 +225,40 @@ export default function Employees() {
                   <TableCell>{emp.contract_type}</TableCell>
                   <TableCell>{emp.role}</TableCell>
                   <TableCell>
+                    {emp.invite_status === 'Ativo' ? (
+                      <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                        Ativo
+                      </Badge>
+                    ) : emp.invite_status === 'Pendente' ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        Pendente
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Não Convidado
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <StatusBadge status={emp.status} />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={
+                          emp.invite_status === 'Pendente' ? 'Reenviar Convite' : 'Enviar Convite'
+                        }
+                        onClick={() => handleSendInvite(emp)}
+                        disabled={!emp.email || emp.invite_status === 'Ativo'}
+                        className="text-blue-500 hover:bg-blue-500/10"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -219,14 +281,14 @@ export default function Employees() {
               ))}
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Nenhum colaborador encontrado.
                     </TableCell>
                   </TableRow>

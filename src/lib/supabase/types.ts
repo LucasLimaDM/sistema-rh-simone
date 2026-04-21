@@ -350,6 +350,7 @@ export type Database = {
           cidade: string | null
           cnpj: string | null
           company: string
+          company_name: string | null
           complemento: string | null
           contract_type: string
           cpf: string | null
@@ -376,6 +377,7 @@ export type Database = {
           cidade?: string | null
           cnpj?: string | null
           company: string
+          company_name?: string | null
           complemento?: string | null
           contract_type?: string
           cpf?: string | null
@@ -402,6 +404,7 @@ export type Database = {
           cidade?: string | null
           cnpj?: string | null
           company?: string
+          company_name?: string | null
           complemento?: string | null
           contract_type?: string
           cpf?: string | null
@@ -1543,6 +1546,7 @@ export const Constants = {
 //   bairro: text (nullable)
 //   cidade: text (nullable)
 //   uf: text (nullable)
+//   company_name: text (nullable)
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)

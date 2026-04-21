@@ -10,6 +10,7 @@ import WorkScales from './pages/WorkScales'
 import Users from './pages/Users'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
+import FirstAccess from './pages/FirstAccess'
 import { AuthProvider, useAuth } from './hooks/use-auth'
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -22,6 +23,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/primeiro-acesso" element={<FirstAccess />} />
     <Route
       element={
         <ProtectedRoute>

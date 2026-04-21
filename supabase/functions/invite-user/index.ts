@@ -14,6 +14,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const resendApiKey = Deno.env.get('RESEND_API_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const authHeader = req.headers.get('Authorization')
@@ -25,62 +26,84 @@ Deno.serve(async (req: Request) => {
     } = await supabase.auth.getUser(token)
     if (userError || !user) throw new Error('Unauthorized')
 
-    // Verificação de Admin para segurança extra no backend
-    const { data: profile } = await supabase
-      .from('hr_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
-    if (profile?.role !== 'Admin') {
-      throw new Error('Apenas administradores podem adicionar membros.')
-    }
+    const { employee_id, email, name, role, company } = await req.json()
+    if (!email || !name) throw new Error('Email e nome são obrigatórios')
 
-    const { email, name, role } = await req.json()
-    if (!email || !name) throw new Error('Email and name are required')
+    const origin = req.headers.get('origin') || 'https://sistema-de-gestao-rh-22169.goskip.app'
+    const redirectTo = `${origin}/primeiro-acesso`
 
-    // Criação direta sem enviar e-mail de convite
-    const { data: inviteData, error: inviteError } = await supabase.auth.admin.createUser({
+    // Gerar link de convite
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'invite',
       email,
-      password: 'PrimerPassword123!', // Senha padrão para acesso futuro
-      email_confirm: true,
-      user_metadata: { name },
+      options: {
+        data: { name, role: role || 'Colaborador', company: company || 'Primer Pisos' },
+        redirectTo,
+      },
     })
 
-    if (inviteError) {
+    if (linkError) {
       if (
-        inviteError.message.includes('already registered') ||
-        inviteError.message.includes('User already exists')
+        linkError.message.includes('already registered') ||
+        linkError.message.includes('User already exists')
       ) {
-        // Se o usuário já existe, vinculamos ao hr_profiles
-        const { data: existingUsers } = await supabase.auth.admin.listUsers()
-        const found = existingUsers.users.find((u) => u.email === email)
-        if (found) {
-          await supabase.from('hr_profiles').upsert({
-            id: found.id,
-            email: email,
-            name: name,
-            role: role || 'Usuário',
-            company: 'Primer Pisos',
-          })
-          return new Response(JSON.stringify({ success: true, user: found }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          })
+        // Usuário já existe, gera um link de recuperação (como alternativa ao convite)
+        const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink(
+          {
+            type: 'recovery',
+            email,
+            options: { redirectTo },
+          },
+        )
+
+        if (recoveryError) throw recoveryError
+
+        if (employee_id) {
+          const { data: existingUser } = await supabase.auth.admin.listUsers()
+          const foundUser = existingUser.users.find((u) => u.email === email)
+          if (foundUser) {
+            await supabase
+              .from('employees')
+              .update({ invite_status: 'Pendente', user_id: foundUser.id })
+              .eq('id', employee_id)
+            await supabase.from('hr_profiles').upsert({
+              id: foundUser.id,
+              email: email,
+              name: name,
+              role: role || 'Colaborador',
+              company: company || 'Primer Pisos',
+            })
+          }
         }
+
+        await sendInviteEmail(resendApiKey, email, name, recoveryData.properties.action_link)
+        return new Response(JSON.stringify({ success: true, message: 'Recovery link sent' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
       }
-      throw inviteError
+      throw linkError
     }
 
-    if (inviteData.user) {
-      await supabase.from('hr_profiles').upsert({
-        id: inviteData.user.id,
-        email: email,
-        name: name,
-        role: role || 'Usuário',
-        company: 'Primer Pisos',
-      })
+    const userId = linkData.user.id
+
+    await supabase.from('hr_profiles').upsert({
+      id: userId,
+      email: email,
+      name: name,
+      role: role || 'Colaborador',
+      company: company || 'Primer Pisos',
+    })
+
+    if (employee_id) {
+      await supabase
+        .from('employees')
+        .update({ invite_status: 'Pendente', user_id: userId })
+        .eq('id', employee_id)
     }
 
-    return new Response(JSON.stringify({ success: true, user: inviteData.user }), {
+    await sendInviteEmail(resendApiKey, email, name, linkData.properties.action_link)
+
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
@@ -90,3 +113,46 @@ Deno.serve(async (req: Request) => {
     })
   }
 })
+
+async function sendInviteEmail(resendApiKey: string, to: string, name: string, link: string) {
+  if (!resendApiKey) {
+    console.warn('No RESEND_API_KEY, invite link:', link)
+    return
+  }
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #006A9C;">Olá, ${name}!</h2>
+      <p>Você foi convidado para acessar o Sistema de Gestão RH da Primer Pisos / Piso Plano.</p>
+      <p>Para definir sua senha e realizar seu primeiro acesso, clique no botão abaixo:</p>
+      <p style="text-align: center; margin: 30px 0;">
+        <a href="${link}" style="display:inline-block;padding:12px 24px;background-color:#006A9C;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar o Sistema</a>
+      </p>
+      <p>Se o botão não funcionar, copie e cole o link no seu navegador:</p>
+      <p style="word-break: break-all; color: #666; font-size: 12px;">${link}</p>
+      <br/>
+      <p>Atenciosamente,<br/>Equipe Primer Pisos</p>
+    </div>
+  `
+  let res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendApiKey}` },
+    body: JSON.stringify({
+      from: 'Sistema de Gestão RH <sistema@primerpisos.com.br>',
+      to,
+      subject: 'Convite para o Sistema de Gestão RH',
+      html,
+    }),
+  })
+  if (!res.ok) {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendApiKey}` },
+      body: JSON.stringify({
+        from: 'Sistema de Gestão RH <onboarding@resend.dev>',
+        to,
+        subject: 'Convite para o Sistema de Gestão RH',
+        html,
+      }),
+    })
+  }
+}
