@@ -64,7 +64,7 @@ export default function Layout() {
         .from('hr_profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
         .then(({ data }) => {
           if (data) setProfile(data)
         })
