@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -13,26 +14,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from '@/components/ui/sheet'
-import { Label } from '@/components/ui/label'
-import { Search, Plus, FileText, UserCircle } from 'lucide-react'
+import { Search, Plus, UserCircle, Trash2, Edit2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
 
 export default function Employees() {
   const { company } = useOutletContext<AppContextType>()
   const [search, setSearch] = useState('')
   const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [editingEmp, setEditingEmp] = useState<any>(null)
   const { toast } = useToast()
 
   const fetchEmployees = async () => {
@@ -55,11 +49,12 @@ export default function Employees() {
           else if (exp < new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) && status !== 'expired')
             status = 'expiring'
         })
-        return { ...emp, contract: emp.contract_type, status }
+        return { ...emp, status }
       })
       setEmployees(formatted)
     }
     setLoading(false)
+    setSelectedIds([])
   }
 
   useEffect(() => {
@@ -70,6 +65,43 @@ export default function Employees() {
     return employees.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
   }, [employees, search])
 
+  const handleOpenNew = () => {
+    setEditingEmp(null)
+    setIsSheetOpen(true)
+  }
+
+  const handleOpenEdit = (emp: any) => {
+    setEditingEmp(emp)
+    setIsSheetOpen(true)
+  }
+
+  const handleDeleteSelected = async () => {
+    if (!selectedIds.length) return
+    if (!confirm('Deseja excluir os colaboradores selecionados?')) return
+    await supabase.from('employees').delete().in('id', selectedIds)
+    toast({ title: 'Excluídos com sucesso' })
+    fetchEmployees()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Deseja excluir este colaborador?')) return
+    await supabase.from('employees').delete().eq('id', id)
+    toast({ title: 'Excluído com sucesso' })
+    fetchEmployees()
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length && filtered.length > 0) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filtered.map((f) => f.id))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -77,14 +109,28 @@ export default function Employees() {
           <h1 className="text-3xl font-bold tracking-tight">Colaboradores</h1>
           <p className="text-muted-foreground mt-1">Gerencie os funcionários da {company}</p>
         </div>
-        <EmployeeFormSheet
-          company={company}
-          onSave={() => {
-            fetchEmployees()
-            toast({ title: 'Sucesso', description: 'Colaborador salvo com sucesso.' })
-          }}
-        />
+        <div className="flex items-center gap-2">
+          {selectedIds.length > 0 && (
+            <Button variant="destructive" onClick={handleDeleteSelected} className="gap-2">
+              <Trash2 className="h-4 w-4" /> Excluir ({selectedIds.length})
+            </Button>
+          )}
+          <Button onClick={handleOpenNew} className="gap-2 shadow-sm">
+            <Plus className="h-4 w-4" /> Novo Colaborador
+          </Button>
+        </div>
       </div>
+
+      <EmployeeFormSheet
+        open={isSheetOpen}
+        setOpen={setIsSheetOpen}
+        company={company}
+        employeeToEdit={editingEmp}
+        onSave={() => {
+          fetchEmployees()
+          toast({ title: 'Sucesso', description: 'Dados salvos com sucesso.' })
+        }}
+      />
 
       <Card className="shadow-subtle border-border">
         <CardContent className="p-0">
@@ -102,8 +148,14 @@ export default function Employees() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedIds.length === filtered.length && filtered.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead>Contrato</TableHead>
+                <TableHead>Vínculo</TableHead>
                 <TableHead>Cargo</TableHead>
                 <TableHead>Status Documentos</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -112,36 +164,58 @@ export default function Employees() {
             <TableBody>
               {filtered.map((emp) => (
                 <TableRow key={emp.id} className="hover:bg-muted/30">
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.includes(emp.id)}
+                      onCheckedChange={() => toggleSelect(emp.id)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium flex items-center gap-2">
                     <UserCircle className="h-8 w-8 text-muted-foreground opacity-50" />
-                    {emp.name}
+                    <div>
+                      <p>{emp.name}</p>
+                      {emp.email && (
+                        <p className="text-xs text-muted-foreground font-normal">{emp.email}</p>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell>{emp.contract}</TableCell>
+                  <TableCell>{emp.contract_type}</TableCell>
                   <TableCell>{emp.role}</TableCell>
                   <TableCell>
                     <StatusBadge status={emp.status} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary font-medium hover:text-primary hover:bg-primary/10"
-                    >
-                      Ver Perfil
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenEdit(emp)}
+                        className="text-primary hover:bg-primary/10"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(emp.id)}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Nenhum colaborador encontrado.
                     </TableCell>
                   </TableRow>
@@ -168,154 +242,5 @@ function StatusBadge({ status }: { status: string }) {
     >
       {status === 'up-to-date' ? 'Em dia' : status === 'expiring' ? 'A Vencer' : 'Vencido'}
     </span>
-  )
-}
-
-function EmployeeFormSheet({ company, onSave }: { company: string; onSave: () => void }) {
-  const [name, setName] = useState('')
-  const [cpf, setCpf] = useState('')
-  const [birthDate, setBirthDate] = useState('')
-  const [role, setRole] = useState('')
-  const [asoDate, setAsoDate] = useState('')
-  const [nr35Date, setNr35Date] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
-
-  const isUnder18 = useMemo(() => {
-    if (!birthDate) return false
-    const age = new Date().getFullYear() - new Date(birthDate).getFullYear()
-    return age < 18
-  }, [birthDate])
-
-  const handleSave = async () => {
-    setLoading(true)
-    const { data: emp, error } = await supabase
-      .from('employees')
-      .insert({
-        company,
-        name,
-        cpf,
-        birth_date: birthDate,
-        role: role || 'Colaborador',
-        contract_type: 'CLT',
-      })
-      .select()
-      .single()
-
-    if (emp) {
-      const docs = []
-      if (asoDate) docs.push({ employee_id: emp.id, document_type: 'ASO', expiry_date: asoDate })
-      if (nr35Date)
-        docs.push({ employee_id: emp.id, document_type: 'NR-35', expiry_date: nr35Date })
-
-      if (docs.length > 0) {
-        await supabase.from('employee_documents').insert(docs)
-      }
-      onSave()
-      setOpen(false)
-      setName('')
-      setCpf('')
-      setBirthDate('')
-      setRole('')
-      setAsoDate('')
-      setNr35Date('')
-    }
-    setLoading(false)
-  }
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button className="gap-2 shadow-sm">
-          <Plus className="h-4 w-4" /> Novo Colaborador
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="sm:max-w-md w-full overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Cadastrar Colaborador</SheetTitle>
-          <SheetDescription>Preencha os dados pessoais e os documentos exigidos.</SheetDescription>
-        </SheetHeader>
-
-        <div className="py-6 space-y-6">
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">
-              Dados Pessoais
-            </h4>
-            <div className="space-y-2">
-              <Label>Nome Completo</Label>
-              <Input
-                placeholder="Ex: João da Silva"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>CPF</Label>
-                <Input
-                  placeholder="000.000.000-00"
-                  value={cpf}
-                  onChange={(e) => setCpf(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Data de Nascimento</Label>
-                <Input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                />
-                {isUnder18 && (
-                  <p className="text-xs text-destructive animate-fade-in">
-                    Deve ter +18 anos (Regra 05).
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">
-              Documentos Base
-            </h4>
-            <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">ASO</span>
-                </div>
-                <Input
-                  type="date"
-                  className="w-[150px] h-8 text-sm"
-                  value={asoDate}
-                  onChange={(e) => setAsoDate(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">NR-35</span>
-                </div>
-                <Input
-                  type="date"
-                  className="w-[150px] h-8 text-sm"
-                  value={nr35Date}
-                  onChange={(e) => setNr35Date(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <SheetFooter className="mt-4">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancelar
-          </Button>
-          <Button disabled={isUnder18 || !name || loading} onClick={handleSave}>
-            {loading ? 'Salvando...' : 'Salvar Colaborador'}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
   )
 }

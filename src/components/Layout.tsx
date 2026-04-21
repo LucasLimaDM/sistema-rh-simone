@@ -193,7 +193,7 @@ export default function Layout() {
               <div className="flex items-center gap-3 border-l pl-4">
                 <div className="hidden md:flex flex-col items-end">
                   <span className="text-sm font-semibold leading-none">
-                    {profile?.name || 'Usuário'}
+                    {profile?.name || user?.user_metadata?.name || 'Usuário'}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {profile?.role || 'Acesso Limitado'}
@@ -202,8 +202,13 @@ export default function Layout() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="h-9 w-9 border-2 border-primary/20 cursor-pointer">
-                      <AvatarImage src="https://img.usecurling.com/ppl/thumbnail?gender=female&seed=1" />
-                      <AvatarFallback>{profile?.name?.charAt(0) || 'U'}</AvatarFallback>
+                      <AvatarImage
+                        src={
+                          profile?.avatar_url ||
+                          'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=1'
+                        }
+                      />
+                      <AvatarFallback>{(profile?.name || 'U').charAt(0)}</AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

@@ -299,6 +299,83 @@ export type Database = {
           },
         ]
       }
+      employee_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          employee_id: string
+          expiry_date: string | null
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          employee_id: string
+          expiry_date?: string | null
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          employee_id?: string
+          expiry_date?: string | null
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'employee_documents_employee_id_fkey'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          birth_date: string | null
+          company: string
+          contract_type: string
+          cpf: string | null
+          created_at: string
+          id: string
+          name: string
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          company: string
+          contract_type?: string
+          cpf?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          role: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          company?: string
+          contract_type?: string
+          cpf?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       followup_roteiro: {
         Row: {
           concluido: boolean
@@ -534,6 +611,33 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      hr_profiles: {
+        Row: {
+          company: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+        }
+        Insert: {
+          company?: string
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          role?: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+        }
+        Relationships: []
       }
       image_bank: {
         Row: {
@@ -941,6 +1045,50 @@ export type Database = {
         }
         Relationships: []
       }
+      time_tracks: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          in1: string | null
+          in2: string | null
+          out1: string | null
+          out2: string | null
+          total_hours: number | null
+          track_date: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          in1?: string | null
+          in2?: string | null
+          out1?: string | null
+          out2?: string | null
+          total_hours?: number | null
+          track_date: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          in1?: string | null
+          in2?: string | null
+          out1?: string | null
+          out2?: string | null
+          total_hours?: number | null
+          track_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'time_tracks_employee_id_fkey'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       user_settings: {
         Row: {
           assinatura_html: string | null
@@ -1066,6 +1214,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      work_scales: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          period: string
+          schedule: Json
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          period: string
+          schedule?: Json
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          period?: string
+          schedule?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'work_scales_employee_id_fkey'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: {
@@ -1281,6 +1461,25 @@ export const Constants = {
 //   erro_mensagem: text (nullable)
 //   notificacao_vista: boolean (not null, default: false)
 //   proposal_id: uuid (nullable)
+// Table: employee_documents
+//   id: uuid (not null, default: gen_random_uuid())
+//   employee_id: uuid (not null)
+//   document_type: text (not null)
+//   expiry_date: date (nullable)
+//   status: text (not null, default: 'up-to-date'::text)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: employees
+//   id: uuid (not null, default: gen_random_uuid())
+//   company: text (not null)
+//   name: text (not null)
+//   cpf: text (nullable)
+//   birth_date: date (nullable)
+//   contract_type: text (not null, default: 'CLT'::text)
+//   role: text (not null)
+//   status: text (not null, default: 'ativo'::text)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1337,6 +1536,13 @@ export const Constants = {
 //   etapa: text (not null)
 //   data_entrada: timestamp with time zone (not null, default: now())
 //   data_saida: timestamp with time zone (nullable)
+// Table: hr_profiles
+//   id: uuid (not null)
+//   email: text (not null)
+//   name: text (not null)
+//   role: text (not null, default: 'NovoUsuario'::text)
+//   company: text (not null, default: 'Primer Pisos'::text)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: image_bank
 //   id: uuid (not null, default: gen_random_uuid())
 //   url: text (not null)
@@ -1438,6 +1644,16 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   items: jsonb (nullable, default: '[]'::jsonb)
 //   observation: text (nullable)
+// Table: time_tracks
+//   id: uuid (not null, default: gen_random_uuid())
+//   employee_id: uuid (not null)
+//   track_date: date (not null)
+//   in1: time without time zone (nullable)
+//   out1: time without time zone (nullable)
+//   in2: time without time zone (nullable)
+//   out2: time without time zone (nullable)
+//   total_hours: numeric (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: user_settings
 //   user_id: uuid (not null)
 //   configuracoes_temperatura: jsonb (nullable, default: '{}'::jsonb)
@@ -1474,6 +1690,12 @@ export const Constants = {
 //   titulo: text (not null)
 //   conteudo: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
+// Table: work_scales
+//   id: uuid (not null, default: gen_random_uuid())
+//   employee_id: uuid (not null)
+//   period: text (not null)
+//   schedule: jsonb (not null, default: '{}'::jsonb)
+//   created_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: catalog_items
@@ -1506,6 +1728,11 @@ export const Constants = {
 //   PRIMARY KEY email_tracking_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY email_tracking_proposal_id_fkey: FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
 //   UNIQUE email_tracking_token_key: UNIQUE (token)
+// Table: employee_documents
+//   FOREIGN KEY employee_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   PRIMARY KEY employee_documents_pkey: PRIMARY KEY (id)
+// Table: employees
+//   PRIMARY KEY employees_pkey: PRIMARY KEY (id)
 // Table: followup_roteiro
 //   FOREIGN KEY followup_roteiro_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY followup_roteiro_pkey: PRIMARY KEY (id)
@@ -1526,6 +1753,9 @@ export const Constants = {
 // Table: historico_etapas
 //   FOREIGN KEY historico_etapas_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY historico_etapas_pkey: PRIMARY KEY (id)
+// Table: hr_profiles
+//   FOREIGN KEY hr_profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+//   PRIMARY KEY hr_profiles_pkey: PRIMARY KEY (id)
 // Table: image_bank
 //   FOREIGN KEY image_bank_folder_id_fkey: FOREIGN KEY (folder_id) REFERENCES image_folders(id) ON DELETE SET NULL
 //   FOREIGN KEY image_bank_industria_id_fkey: FOREIGN KEY (industria_id) REFERENCES image_industrias(id) ON DELETE SET NULL
@@ -1558,6 +1788,9 @@ export const Constants = {
 //   FOREIGN KEY proposals_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: tax_settings
 //   PRIMARY KEY tax_settings_pkey: PRIMARY KEY (id)
+// Table: time_tracks
+//   FOREIGN KEY time_tracks_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   PRIMARY KEY time_tracks_pkey: PRIMARY KEY (id)
 // Table: user_settings
 //   PRIMARY KEY user_settings_pkey: PRIMARY KEY (user_id)
 //   FOREIGN KEY user_settings_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -1567,6 +1800,10 @@ export const Constants = {
 // Table: whatsapp_templates
 //   PRIMARY KEY whatsapp_templates_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY whatsapp_templates_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: work_scales
+//   FOREIGN KEY work_scales_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   UNIQUE work_scales_employee_id_period_key: UNIQUE (employee_id, period)
+//   PRIMARY KEY work_scales_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: catalog_items
@@ -1593,6 +1830,14 @@ export const Constants = {
 //   Policy "email_tracking_workspace" (ALL, PERMISSIVE) roles={public}
 //     USING: (((lead_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = email_tracking.lead_id)))) OR ((proposal_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM proposals   WHERE (proposals.id = email_tracking.proposal_id)))))
 //     WITH CHECK: (((lead_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = email_tracking.lead_id)))) OR ((proposal_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM proposals   WHERE (proposals.id = email_tracking.proposal_id)))))
+// Table: employee_documents
+//   Policy "employee_documents_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: employees
+//   Policy "employees_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: followup_roteiro
 //   Policy "Users can manage workspace followup_roteiro" (ALL, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = followup_roteiro.lead_id)))
@@ -1628,6 +1873,10 @@ export const Constants = {
 //   Policy "Workspace access for historico_etapas" (ALL, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = historico_etapas.lead_id)))
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = historico_etapas.lead_id)))
+// Table: hr_profiles
+//   Policy "hr_profiles_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: image_bank
 //   Policy "authenticated_all_bank" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1678,6 +1927,10 @@ export const Constants = {
 //   Policy "authenticated_all_tax_settings" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: time_tracks
+//   Policy "time_tracks_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: user_settings
 //   Policy "public_read_user_settings" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
@@ -1699,6 +1952,10 @@ export const Constants = {
 //   Policy "whatsapp_templates_all_workspace" (ALL, PERMISSIVE) roles={public}
 //     USING: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
 //     WITH CHECK: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
+// Table: work_scales
+//   Policy "work_scales_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION format_phone_number(text)
@@ -1923,6 +2180,19 @@ export const Constants = {
 //       END LOOP;
 //
 //       RETURN NULL;
+//   END;
+//   $function$
+//
+// FUNCTION handle_new_hr_user()
+//   CREATE OR REPLACE FUNCTION public.handle_new_hr_user()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     INSERT INTO public.hr_profiles (id, email, name)
+//     VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)));
+//     RETURN NEW;
 //   END;
 //   $function$
 //
@@ -2252,3 +2522,5 @@ export const Constants = {
 //   CREATE INDEX idx_leads_email ON public.leads USING btree (email)
 //   CREATE INDEX idx_leads_telefone ON public.leads USING btree (telefone)
 //   CREATE INDEX idx_leads_visita_vendedor ON public.leads USING btree (visita_vendedor_id)
+// Table: work_scales
+//   CREATE UNIQUE INDEX work_scales_employee_id_period_key ON public.work_scales USING btree (employee_id, period)

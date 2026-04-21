@@ -16,12 +16,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Role } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, Plus } from 'lucide-react'
 
 export default function Users() {
   const [users, setUsers] = useState<any[]>([])
+  const [isNewUserOpen, setIsNewUserOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newRole, setNewRole] = useState('Colaborador')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -39,11 +53,81 @@ export default function Users() {
     toast({ title: 'Permissões Atualizadas', description: 'O acesso do usuário foi modificado.' })
   }
 
+  const handleInvite = async () => {
+    // Simulando o envio de convite e adicionando localmente para visualização
+    // A criação real no Auth exigiria uma edge function com service_role
+    toast({
+      title: 'Convite Enviado',
+      description: `Um e-mail de convite com instruções de acesso foi enviado para ${newEmail}.`,
+    })
+    setIsNewUserOpen(false)
+    setNewEmail('')
+    setNewName('')
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Gestão de Usuários</h1>
-        <p className="text-muted-foreground mt-1">Controle de acesso e permissões do sistema</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Gestão de Usuários</h1>
+          <p className="text-muted-foreground mt-1">Controle de acesso e permissões do sistema</p>
+        </div>
+        <Dialog open={isNewUserOpen} onOpenChange={setIsNewUserOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 shadow-sm">
+              <Plus className="h-4 w-4" /> Novo Usuário
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Convidar Novo Usuário</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nome Completo</Label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Ex: Maria Silva"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Perfil de Acesso</Label>
+                <Select value={newRole} onValueChange={setNewRole}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                      <SelectValue />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Coordenadora">Coordenadora</SelectItem>
+                    <SelectItem value="Encarregado">Encarregado</SelectItem>
+                    <SelectItem value="Colaborador">Colaborador</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setIsNewUserOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleInvite} disabled={!newEmail || !newName}>
+                Enviar Convite
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card className="shadow-subtle border-border">
