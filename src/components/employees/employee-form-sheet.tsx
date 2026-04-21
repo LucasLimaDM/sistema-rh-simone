@@ -348,7 +348,7 @@ export function EmployeeFormSheet({
                   </SelectContent>
                 </Select>
               </div>
-              <InputRow label="Data de Admissão" field="admission_date" type="date" />
+              {renderInputRow('Data de Admissão', 'admission_date', 'date')}
             </div>
             <div className="space-y-1.5 mt-2">
               <Label className="text-xs">Observações</Label>
