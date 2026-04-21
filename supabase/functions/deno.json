@@ -13,6 +13,6 @@
     "create-lead-webhook": 4,
     "schedule-visit": 3,
     "daily-report": 2,
-    "invite-user": 1
+    "invite-user": 2
   }
 }

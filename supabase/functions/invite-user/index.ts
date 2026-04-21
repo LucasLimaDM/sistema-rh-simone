@@ -25,17 +25,50 @@ Deno.serve(async (req: Request) => {
     } = await supabase.auth.getUser(token)
     if (userError || !user) throw new Error('Unauthorized')
 
+    // Verificação de Admin para segurança extra no backend
+    const { data: profile } = await supabase
+      .from('hr_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (profile?.role !== 'Admin') {
+      throw new Error('Apenas administradores podem adicionar membros.')
+    }
+
     const { email, name, role } = await req.json()
     if (!email || !name) throw new Error('Email and name are required')
 
-    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    // Criação direta sem enviar e-mail de convite
+    const { data: inviteData, error: inviteError } = await supabase.auth.admin.createUser({
       email,
-      {
-        data: { name },
-      },
-    )
+      password: 'PrimerPassword123!', // Senha padrão para acesso futuro
+      email_confirm: true,
+      user_metadata: { name },
+    })
 
-    if (inviteError) throw inviteError
+    if (inviteError) {
+      if (
+        inviteError.message.includes('already registered') ||
+        inviteError.message.includes('User already exists')
+      ) {
+        // Se o usuário já existe, vinculamos ao hr_profiles
+        const { data: existingUsers } = await supabase.auth.admin.listUsers()
+        const found = existingUsers.users.find((u) => u.email === email)
+        if (found) {
+          await supabase.from('hr_profiles').upsert({
+            id: found.id,
+            email: email,
+            name: name,
+            role: role || 'Usuário',
+            company: 'Primer Pisos',
+          })
+          return new Response(JSON.stringify({ success: true, user: found }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      }
+      throw inviteError
+    }
 
     if (inviteData.user) {
       await supabase.from('hr_profiles').upsert({
