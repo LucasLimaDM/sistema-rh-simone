@@ -155,6 +155,7 @@ export default function Employees() {
                   />
                 </TableHead>
                 <TableHead>Nome</TableHead>
+                <TableHead>Contato</TableHead>
                 <TableHead>Vínculo</TableHead>
                 <TableHead>Cargo</TableHead>
                 <TableHead>Status Documentos</TableHead>
@@ -170,13 +171,23 @@ export default function Employees() {
                       onCheckedChange={() => toggleSelect(emp.id)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    <UserCircle className="h-8 w-8 text-muted-foreground opacity-50" />
-                    <div>
-                      <p>{emp.name}</p>
-                      {emp.email && (
-                        <p className="text-xs text-muted-foreground font-normal">{emp.email}</p>
-                      )}
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <UserCircle className="h-8 w-8 text-muted-foreground opacity-50" />
+                      <div>
+                        <p>{emp.name}</p>
+                        {emp.cpf && (
+                          <p className="text-xs text-muted-foreground font-normal">
+                            CPF: {emp.cpf}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-xs space-y-0.5">
+                      {emp.phone && <p>{emp.phone}</p>}
+                      {emp.email && <p className="text-muted-foreground">{emp.email}</p>}
                     </div>
                   </TableCell>
                   <TableCell>{emp.contract_type}</TableCell>
@@ -208,14 +219,14 @@ export default function Employees() {
               ))}
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : (
                 filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum colaborador encontrado.
                     </TableCell>
                   </TableRow>

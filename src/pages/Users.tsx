@@ -35,7 +35,7 @@ export default function Users() {
   const [isNewUserOpen, setIsNewUserOpen] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
-  const [newRole, setNewRole] = useState('Colaborador')
+  const [newRole, setNewRole] = useState('Usuário')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -54,15 +54,30 @@ export default function Users() {
   }
 
   const handleInvite = async () => {
-    // Simulando o envio de convite e adicionando localmente para visualização
-    // A criação real no Auth exigiria uma edge function com service_role
-    toast({
-      title: 'Convite Enviado',
-      description: `Um e-mail de convite com instruções de acesso foi enviado para ${newEmail}.`,
-    })
-    setIsNewUserOpen(false)
-    setNewEmail('')
-    setNewName('')
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: { email: newEmail, name: newName, role: newRole },
+      })
+
+      if (error || (data && !data.success)) {
+        throw new Error('Erro ao enviar convite')
+      }
+
+      toast({
+        title: 'Convite Enviado',
+        description: `Um e-mail de convite foi enviado para ${newEmail}.`,
+      })
+      setIsNewUserOpen(false)
+      setNewEmail('')
+      setNewName('')
+      fetchUsers()
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível enviar o convite.',
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -111,9 +126,7 @@ export default function Users() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Coordenadora">Coordenadora</SelectItem>
-                    <SelectItem value="Encarregado">Encarregado</SelectItem>
-                    <SelectItem value="Colaborador">Colaborador</SelectItem>
+                    <SelectItem value="Usuário">Usuário</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -158,10 +171,7 @@ export default function Users() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Coordenadora">Coordenadora</SelectItem>
-                        <SelectItem value="Encarregado">Encarregado</SelectItem>
-                        <SelectItem value="Colaborador">Colaborador</SelectItem>
-                        <SelectItem value="NovoUsuario">Novo Usuário</SelectItem>
+                        <SelectItem value="Usuário">Usuário</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>

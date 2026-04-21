@@ -1,7 +1,7 @@
 export type Company = 'Primer Pisos' | 'Piso Plano'
 export type ContractType = 'CLT' | 'MEI'
 export type DocStatus = 'up-to-date' | 'expiring' | 'expired'
-export type Role = 'Admin' | 'Coordenadora' | 'NovoUsuario' | 'Colaborador' | 'Encarregado'
+export type Role = 'Admin' | 'Usuário'
 
 export interface AppContextType {
   company: Company

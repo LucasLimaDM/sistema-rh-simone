@@ -339,37 +339,55 @@ export type Database = {
       }
       employees: {
         Row: {
+          address: string | null
+          admission_date: string | null
           birth_date: string | null
+          cnpj: string | null
           company: string
           contract_type: string
           cpf: string | null
           created_at: string
+          email: string | null
           id: string
           name: string
+          observations: string | null
+          rg: string | null
           role: string
           status: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          admission_date?: string | null
           birth_date?: string | null
+          cnpj?: string | null
           company: string
           contract_type?: string
           cpf?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name: string
+          observations?: string | null
+          rg?: string | null
           role: string
           status?: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          admission_date?: string | null
           birth_date?: string | null
+          cnpj?: string | null
           company?: string
           contract_type?: string
           cpf?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           name?: string
+          observations?: string | null
+          rg?: string | null
           role?: string
           status?: string
           updated_at?: string
@@ -614,6 +632,7 @@ export type Database = {
       }
       hr_profiles: {
         Row: {
+          avatar_url: string | null
           company: string
           created_at: string
           email: string
@@ -622,6 +641,7 @@ export type Database = {
           role: string
         }
         Insert: {
+          avatar_url?: string | null
           company?: string
           created_at?: string
           email: string
@@ -630,6 +650,7 @@ export type Database = {
           role?: string
         }
         Update: {
+          avatar_url?: string | null
           company?: string
           created_at?: string
           email?: string
@@ -1480,6 +1501,12 @@ export const Constants = {
 //   status: text (not null, default: 'ativo'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   email: text (nullable)
+//   address: text (nullable)
+//   rg: text (nullable)
+//   cnpj: text (nullable)
+//   admission_date: date (nullable)
+//   observations: text (nullable)
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1543,6 +1570,7 @@ export const Constants = {
 //   role: text (not null, default: 'NovoUsuario'::text)
 //   company: text (not null, default: 'Primer Pisos'::text)
 //   created_at: timestamp with time zone (not null, default: now())
+//   avatar_url: text (nullable)
 // Table: image_bank
 //   id: uuid (not null, default: gen_random_uuid())
 //   url: text (not null)

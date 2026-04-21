@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Sheet,
@@ -19,25 +19,70 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Trash2, ExternalLink, UploadCloud } from 'lucide-react'
+
+interface DocState {
+  expiry_date: string
+  file_url?: string
+  file?: File
+}
 
 function DocInput({
   label,
-  value,
+  docState,
   onChange,
 }: {
   label: string
-  value: string
-  onChange: (v: string) => void
+  docState: DocState
+  onChange: (v: DocState) => void
 }) {
   return (
-    <div className="flex items-center justify-between p-2 border rounded-md bg-muted/20">
-      <span className="font-medium text-xs whitespace-nowrap">{label}</span>
-      <Input
-        type="date"
-        className="w-[130px] h-7 text-xs px-2"
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-      />
+    <div className="flex flex-col gap-2 p-3 border rounded-md bg-muted/20">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-xs">{label}</span>
+        <Input
+          type="date"
+          className="w-[120px] h-7 text-xs px-2"
+          value={docState.expiry_date || ''}
+          onChange={(e) => onChange({ ...docState, expiry_date: e.target.value })}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Label className="cursor-pointer text-xs flex-1 flex items-center justify-center gap-2 border border-dashed rounded-md h-7 hover:bg-muted transition-colors px-2">
+          <UploadCloud className="h-3 w-3" />
+          <span className="truncate max-w-[80px]">
+            {docState.file ? 'Selecionado' : docState.file_url ? 'Anexado' : 'Anexar'}
+          </span>
+          <input
+            type="file"
+            className="hidden"
+            accept=".pdf,image/*"
+            onChange={(e) =>
+              e.target.files?.[0] && onChange({ ...docState, file: e.target.files[0] })
+            }
+          />
+        </Label>
+        {(docState.file_url || docState.file) && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+            onClick={() => onChange({ ...docState, file: undefined, file_url: '' })}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+        {docState.file_url && !docState.file && (
+          <a
+            href={docState.file_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center h-7 w-7 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -55,173 +100,254 @@ export function EmployeeFormSheet({
   open: boolean
   setOpen: (val: boolean) => void
 }) {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [cpf, setCpf] = useState('')
-  const [rg, setRg] = useState('')
-  const [cnpj, setCnpj] = useState('')
-  const [birthDate, setBirthDate] = useState('')
-  const [address, setAddress] = useState('')
-  const [role, setRole] = useState('')
-  const [contractType, setContractType] = useState('CLT')
-  const [admissionDate, setAdmissionDate] = useState('')
-  const [observations, setObservations] = useState('')
-  const [docs, setDocs] = useState<Record<string, string>>({})
+  const [data, setData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    cpf: '',
+    rg: '',
+    cnpj: '',
+    birth_date: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
+    role: '',
+    contract_type: 'CLT',
+    admission_date: '',
+    observations: '',
+  })
+
+  const [docs, setDocs] = useState<Record<string, DocState>>({})
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
       if (employeeToEdit) {
-        setName(employeeToEdit.name || '')
-        setEmail(employeeToEdit.email || '')
-        setCpf(employeeToEdit.cpf || '')
-        setRg(employeeToEdit.rg || '')
-        setCnpj(employeeToEdit.cnpj || '')
-        setBirthDate(employeeToEdit.birth_date || '')
-        setAddress(employeeToEdit.address || '')
-        setRole(employeeToEdit.role || '')
-        setContractType(employeeToEdit.contract_type || 'CLT')
-        setAdmissionDate(employeeToEdit.admission_date || '')
-        setObservations(employeeToEdit.observations || '')
-        const d: Record<string, string> = {}
+        setData({
+          name: employeeToEdit.name || '',
+          email: employeeToEdit.email || '',
+          phone: employeeToEdit.phone || '',
+          cpf: employeeToEdit.cpf || '',
+          rg: employeeToEdit.rg || '',
+          cnpj: employeeToEdit.cnpj || '',
+          birth_date: employeeToEdit.birth_date || '',
+          cep: employeeToEdit.cep || '',
+          logradouro: employeeToEdit.logradouro || '',
+          numero: employeeToEdit.numero || '',
+          complemento: employeeToEdit.complemento || '',
+          bairro: employeeToEdit.bairro || '',
+          cidade: employeeToEdit.cidade || '',
+          uf: employeeToEdit.uf || '',
+          role: employeeToEdit.role || '',
+          contract_type: employeeToEdit.contract_type || 'CLT',
+          admission_date: employeeToEdit.admission_date || '',
+          observations: employeeToEdit.observations || '',
+        })
+        const d: Record<string, DocState> = {}
         employeeToEdit.employee_documents?.forEach((doc: any) => {
-          if (doc.expiry_date) d[doc.document_type] = doc.expiry_date
+          d[doc.document_type] = {
+            expiry_date: doc.expiry_date || '',
+            file_url: doc.file_url || '',
+          }
         })
         setDocs(d)
       } else {
-        setName('')
-        setEmail('')
-        setCpf('')
-        setRg('')
-        setCnpj('')
-        setBirthDate('')
-        setAddress('')
-        setRole('')
-        setContractType('CLT')
-        setAdmissionDate('')
-        setObservations('')
+        setData({
+          name: '',
+          email: '',
+          phone: '',
+          cpf: '',
+          rg: '',
+          cnpj: '',
+          birth_date: '',
+          cep: '',
+          logradouro: '',
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: '',
+          uf: '',
+          role: '',
+          contract_type: 'CLT',
+          admission_date: '',
+          observations: '',
+        })
         setDocs({})
       }
     }
   }, [open, employeeToEdit])
 
-  const isUnder18 = useMemo(() => {
-    if (!birthDate) return false
-    const age = new Date().getFullYear() - new Date(birthDate).getFullYear()
-    return age < 18
-  }, [birthDate])
+  const handleCep = async (val: string) => {
+    setData((prev) => ({ ...prev, cep: val }))
+    const cleanCep = val.replace(/\D/g, '')
+    if (cleanCep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        const viacep = await res.json()
+        if (!viacep.erro) {
+          setData((prev) => ({
+            ...prev,
+            logradouro: viacep.logradouro || prev.logradouro,
+            bairro: viacep.bairro || prev.bairro,
+            cidade: viacep.localidade || prev.cidade,
+            uf: viacep.uf || prev.uf,
+          }))
+        }
+      } catch (e) {}
+    }
+  }
 
   const handleSave = async () => {
     setLoading(true)
-    const payload = {
-      company,
-      name,
-      email,
-      cpf,
-      rg,
-      cnpj,
-      birth_date: birthDate || null,
-      address,
-      role: role || 'Colaborador',
-      contract_type: contractType,
-      admission_date: admissionDate || null,
-      observations,
-    }
-
-    let empId = employeeToEdit?.id
-    if (empId) {
-      await supabase.from('employees').update(payload).eq('id', empId)
-    } else {
-      const { data } = await supabase.from('employees').insert(payload).select().single()
-      if (data) empId = data.id
-    }
-
-    if (empId) {
-      await supabase.from('employee_documents').delete().eq('employee_id', empId)
-      const docInserts = Object.entries(docs)
-        .filter(([_, date]) => !!date)
-        .map(([type, date]) => ({
-          employee_id: empId,
-          document_type: type,
-          expiry_date: date,
-        }))
-      if (docInserts.length > 0) {
-        await supabase.from('employee_documents').insert(docInserts)
+    let uploadedUrls: Record<string, string> = {}
+    for (const [type, doc] of Object.entries(docs)) {
+      if (doc.file) {
+        const fileExt = doc.file.name.split('.').pop()
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+        const { data: upData } = await supabase.storage
+          .from('employee_documents')
+          .upload(fileName, doc.file)
+        if (upData) {
+          const { data: pubData } = supabase.storage
+            .from('employee_documents')
+            .getPublicUrl(fileName)
+          uploadedUrls[type] = pubData.publicUrl
+        }
+      } else if (doc.file_url) {
+        uploadedUrls[type] = doc.file_url
       }
+    }
+
+    const payload = {
+      ...data,
+      birth_date: data.birth_date || null,
+      admission_date: data.admission_date || null,
+      role: data.role || 'Colaborador',
+    }
+
+    const otherCompany = company === 'Primer Pisos' ? 'Piso Plano' : 'Primer Pisos'
+    let createdIds: string[] = []
+
+    if (employeeToEdit?.id) {
+      await supabase.from('employees').update(payload).eq('id', employeeToEdit.id)
+      createdIds.push(employeeToEdit.id)
+    } else {
+      const { data: insData } = await supabase
+        .from('employees')
+        .insert([
+          { ...payload, company },
+          { ...payload, company: otherCompany },
+        ])
+        .select()
+      if (insData) createdIds = insData.map((e) => e.id)
+    }
+
+    if (createdIds.length > 0) {
+      if (employeeToEdit?.id) {
+        await supabase.from('employee_documents').delete().eq('employee_id', employeeToEdit.id)
+      }
+
+      const docInserts: any[] = []
+      createdIds.forEach((empId) => {
+        Object.entries(docs).forEach(([type, doc]) => {
+          if (doc.expiry_date || uploadedUrls[type]) {
+            docInserts.push({
+              employee_id: empId,
+              document_type: type,
+              expiry_date: doc.expiry_date || null,
+              file_url: uploadedUrls[type] || null,
+            })
+          }
+        })
+      })
+      if (docInserts.length > 0) await supabase.from('employee_documents').insert(docInserts)
       onSave()
       setOpen(false)
     }
     setLoading(false)
   }
 
+  const InputRow = ({
+    label,
+    field,
+    type = 'text',
+    span = 1,
+  }: {
+    label: string
+    field: keyof typeof data
+    type?: string
+    span?: number
+  }) => (
+    <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
+      <Label className="text-xs">{label}</Label>
+      <Input
+        type={type}
+        value={data[field]}
+        onChange={(e) =>
+          field === 'cep'
+            ? handleCep(e.target.value)
+            : setData({ ...data, [field]: e.target.value })
+        }
+        className="h-8 text-sm"
+      />
+    </div>
+  )
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
-        <SheetHeader>
+      <SheetContent className="sm:max-w-xl w-full overflow-y-auto p-0 flex flex-col">
+        <SheetHeader className="p-6 pb-2 border-b sticky top-0 bg-background z-10">
           <SheetTitle>{employeeToEdit ? 'Editar Colaborador' : 'Cadastrar Colaborador'}</SheetTitle>
           <SheetDescription>
-            Preencha os dados cadastrais e as validades dos documentos. Todos os campos são
-            opcionais.
+            Preencha os dados e anexe documentos.{' '}
+            {employeeToEdit ? '' : 'Será espelhado para a outra empresa.'}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="py-6 space-y-6">
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">
-              Dados Pessoais
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Nome Completo</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>E-mail</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>CPF</Label>
-                <Input value={cpf} onChange={(e) => setCpf(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>RG</Label>
-                <Input value={rg} onChange={(e) => setRg(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>CNPJ</Label>
-                <Input value={cnpj} onChange={(e) => setCnpj(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Endereço</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Data de Nascimento</Label>
-                <Input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                />
-                {isUnder18 && (
-                  <p className="text-xs text-destructive">Atenção: Menor de 18 anos.</p>
-                )}
+        <div className="p-6 space-y-8 flex-1">
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-primary uppercase">Dados Pessoais</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <InputRow label="Nome Completo" field="name" span={2} />
+              <InputRow label="E-mail" field="email" type="email" />
+              <InputRow label="Celular" field="phone" />
+              <InputRow label="CPF" field="cpf" />
+              <InputRow label="RG" field="rg" />
+              <InputRow label="Data de Nasc." field="birth_date" type="date" />
+              <InputRow label="CNPJ" field="cnpj" />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-primary uppercase">Endereço</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <InputRow label="CEP" field="cep" />
+              <InputRow label="Logradouro" field="logradouro" />
+              <InputRow label="Número" field="numero" />
+              <InputRow label="Complemento" field="complemento" />
+              <InputRow label="Bairro" field="bairro" />
+              <div className="grid grid-cols-2 gap-2">
+                <InputRow label="Cidade" field="cidade" />
+                <InputRow label="UF" field="uf" />
               </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">
-              Vínculo e Admissão
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-primary uppercase">Vínculo</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <InputRow label="Cargo/Função" field="role" />
               <div className="space-y-1.5">
-                <Label>Cargo/Função</Label>
-                <Input value={role} onChange={(e) => setRole(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tipo de Vínculo</Label>
-                <Select value={contractType} onValueChange={setContractType}>
-                  <SelectTrigger>
+                <Label className="text-xs">Tipo de Vínculo</Label>
+                <Select
+                  value={data.contract_type}
+                  onValueChange={(v) => setData({ ...data, contract_type: v })}
+                >
+                  <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -230,70 +356,40 @@ export function EmployeeFormSheet({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Data de Admissão</Label>
-                <Input
-                  type="date"
-                  value={admissionDate}
-                  onChange={(e) => setAdmissionDate(e.target.value)}
-                />
-              </div>
+              <InputRow label="Data de Admissão" field="admission_date" type="date" />
             </div>
-            <div className="space-y-1.5">
-              <Label>Observações</Label>
+            <div className="space-y-1.5 mt-2">
+              <Label className="text-xs">Observações</Label>
               <Textarea
                 rows={2}
-                value={observations}
-                onChange={(e) => setObservations(e.target.value)}
+                value={data.observations}
+                onChange={(e) => setData({ ...data, observations: e.target.value })}
+                className="text-sm"
               />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-primary uppercase tracking-wider">
-              Validade de Documentos
-            </h4>
+          <div className="space-y-3 pb-8">
+            <h4 className="text-sm font-semibold text-primary uppercase">Documentos e Validades</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <DocInput
-                label="ASO"
-                value={docs['ASO']}
-                onChange={(v) => setDocs({ ...docs, ASO: v })}
-              />
-              <DocInput
-                label="NR-35"
-                value={docs['NR-35']}
-                onChange={(v) => setDocs({ ...docs, 'NR-35': v })}
-              />
-              <DocInput
-                label="NR-06"
-                value={docs['NR-06']}
-                onChange={(v) => setDocs({ ...docs, 'NR-06': v })}
-              />
-              <DocInput
-                label="NR-12"
-                value={docs['NR-12']}
-                onChange={(v) => setDocs({ ...docs, 'NR-12': v })}
-              />
-              <DocInput
-                label="NR-18"
-                value={docs['NR-18']}
-                onChange={(v) => setDocs({ ...docs, 'NR-18': v })}
-              />
-              <DocInput
-                label="Ord. Serviço"
-                value={docs['OS']}
-                onChange={(v) => setDocs({ ...docs, OS: v })}
-              />
+              {['ASO', 'NR-35', 'NR-06', 'NR-12', 'NR-18', 'OS'].map((type) => (
+                <DocInput
+                  key={type}
+                  label={type}
+                  docState={docs[type] || { expiry_date: '' }}
+                  onChange={(v) => setDocs({ ...docs, [type]: v })}
+                />
+              ))}
             </div>
           </div>
         </div>
 
-        <SheetFooter className="mt-2 pb-6">
+        <SheetFooter className="p-6 border-t sticky bottom-0 bg-background z-10">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button disabled={loading || !name} onClick={handleSave}>
-            {loading ? 'Salvando...' : 'Salvar Colaborador'}
+          <Button disabled={loading || !data.name} onClick={handleSave}>
+            {loading ? 'Salvando...' : 'Salvar'}
           </Button>
         </SheetFooter>
       </SheetContent>
