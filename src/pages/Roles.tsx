@@ -42,20 +42,32 @@ export default function Roles() {
   }, [company])
 
   const handleHourlyChange = (val: string) => {
-    setHourlyRate(val)
-    const h = parseFloat(val.toString().replace(',', '.'))
+    const sanitized = val.replace(/[^0-9,]/g, '')
+    setHourlyRate(sanitized)
+    const h = parseFloat(sanitized.replace(',', '.'))
     if (!isNaN(h)) {
-      setDailyRate((h * 8).toFixed(2))
+      setDailyRate((h * 8).toFixed(2).replace('.', ','))
     } else {
       setDailyRate('')
+    }
+  }
+
+  const handleDailyChange = (val: string) => {
+    const sanitized = val.replace(/[^0-9,]/g, '')
+    setDailyRate(sanitized)
+  }
+
+  const handleFocus = (setter: (val: string) => void, val: string) => {
+    if (val === '0' || val === '0,00' || val === '0.00') {
+      setter('')
     }
   }
 
   const handleEdit = (r: any) => {
     setEditingId(r.id)
     setName(r.name)
-    setHourlyRate(r.hourly_rate.toString())
-    setDailyRate(r.daily_rate.toString())
+    setHourlyRate(r.hourly_rate ? r.hourly_rate.toString().replace('.', ',') : '')
+    setDailyRate(r.daily_rate ? r.daily_rate.toString().replace('.', ',') : '')
   }
 
   const handleCancelEdit = () => {
@@ -141,19 +153,19 @@ export default function Roles() {
               <Input
                 value={hourlyRate}
                 onChange={(e) => handleHourlyChange(e.target.value)}
-                placeholder="0.00"
-                type="number"
-                step="0.01"
+                onFocus={() => handleFocus(setHourlyRate, hourlyRate)}
+                placeholder="0,00"
+                type="text"
               />
             </div>
             <div className="space-y-2">
               <Label>Valor Diária (R$)</Label>
               <Input
                 value={dailyRate}
-                onChange={(e) => setDailyRate(e.target.value)}
-                placeholder="0.00"
-                type="number"
-                step="0.01"
+                onChange={(e) => handleDailyChange(e.target.value)}
+                onFocus={() => handleFocus(setDailyRate, dailyRate)}
+                placeholder="0,00"
+                type="text"
               />
             </div>
             <div className="flex items-center gap-2 md:col-span-5">
@@ -191,10 +203,10 @@ export default function Roles() {
               <TableRow key={r.id} className="hover:bg-muted/30">
                 <TableCell className="font-medium">{r.name}</TableCell>
                 <TableCell className="font-mono text-primary">
-                  R$ {r.hourly_rate.toFixed(2)}
+                  {r.hourly_rate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
                 <TableCell className="font-mono text-primary">
-                  R$ {r.daily_rate.toFixed(2)}
+                  {r.daily_rate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
