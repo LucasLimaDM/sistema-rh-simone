@@ -197,7 +197,9 @@ export function EmployeeFormSheet({
             uf: viacep.uf || prev.uf,
           }))
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Erro ao buscar CEP:', e)
+      }
     }
   }
 
