@@ -124,9 +124,18 @@ export function EmployeeFormSheet({
 
   const [docs, setDocs] = useState<Record<string, DocState>>({})
   const [loading, setLoading] = useState(false)
+  const [roles, setRoles] = useState<any[]>([])
 
   useEffect(() => {
     if (open) {
+      supabase
+        .from('hr_roles')
+        .select('*')
+        .eq('company', company)
+        .then(({ data }) => {
+          if (data) setRoles(data)
+        })
+
       if (employeeToEdit) {
         setData({
           name: employeeToEdit.name || '',
@@ -145,6 +154,7 @@ export function EmployeeFormSheet({
           cidade: employeeToEdit.cidade || '',
           uf: employeeToEdit.uf || '',
           role: employeeToEdit.role || '',
+          role_id: employeeToEdit.role_id || '',
           contract_type: employeeToEdit.contract_type || 'CLT',
           admission_date: employeeToEdit.admission_date || '',
           observations: employeeToEdit.observations || '',
@@ -175,6 +185,7 @@ export function EmployeeFormSheet({
           cidade: '',
           uf: '',
           role: '',
+          role_id: '',
           contract_type: 'CLT',
           admission_date: '',
           observations: '',
@@ -227,11 +238,14 @@ export function EmployeeFormSheet({
       }
     }
 
+    const selectedRole = roles.find((r) => r.id === data.role_id)
+
     const payload = {
       ...data,
       birth_date: data.birth_date || null,
       admission_date: data.admission_date || null,
-      role: data.role || 'Colaborador',
+      role: selectedRole ? selectedRole.name : data.role || 'Colaborador',
+      role_id: data.role_id || null,
     }
 
     const otherCompany = company === 'Primer Pisos' ? 'Piso Plano' : 'Primer Pisos'
@@ -375,7 +389,24 @@ export function EmployeeFormSheet({
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-primary uppercase">Vínculo</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {renderInputRow('Cargo/Função', 'role')}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cargo/Função</Label>
+                <Select
+                  value={data.role_id || ''}
+                  onValueChange={(v) => setData({ ...data, role_id: v })}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Tipo de Vínculo</Label>
                 <Select

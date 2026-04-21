@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import Index from './pages/Index'
 import Employees from './pages/Employees'
 import TimeTracking from './pages/TimeTracking'
+import Roles from './pages/Roles'
 import WorkScales from './pages/WorkScales'
 import Users from './pages/Users'
 import NotFound from './pages/NotFound'
@@ -33,6 +34,7 @@ const AppRoutes = () => (
     >
       <Route path="/" element={<Index />} />
       <Route path="/colaboradores" element={<Employees />} />
+      <Route path="/cargos" element={<Roles />} />
       <Route path="/ponto" element={<TimeTracking />} />
       <Route path="/escalas" element={<WorkScales />} />
       <Route path="/equipes" element={<Users />} />

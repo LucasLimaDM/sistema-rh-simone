@@ -14,11 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, Plus, UserCircle, Trash2, Edit2, Send } from 'lucide-react'
+import { Search, Plus, UserCircle, Trash2, Edit2, Send, Briefcase } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
 import { Badge } from '@/components/ui/badge'
+import { Link } from 'react-router-dom'
 
 export default function Employees() {
   const { company } = useOutletContext<AppContextType>()
@@ -140,12 +141,17 @@ export default function Employees() {
           <h1 className="text-3xl font-bold tracking-tight">Colaboradores</h1>
           <p className="text-muted-foreground mt-1">Gerencie os funcionários da {company}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && (
             <Button variant="destructive" onClick={handleDeleteSelected} className="gap-2">
               <Trash2 className="h-4 w-4" /> Excluir ({selectedIds.length})
             </Button>
           )}
+          <Link to="/cargos">
+            <Button variant="outline" className="gap-2 shadow-sm">
+              <Briefcase className="h-4 w-4" /> Gerenciar Cargos
+            </Button>
+          </Link>
           <Button onClick={handleOpenNew} className="gap-2 shadow-sm">
             <Plus className="h-4 w-4" /> Novo Colaborador
           </Button>

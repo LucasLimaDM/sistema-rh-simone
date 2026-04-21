@@ -357,6 +357,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          invite_status: string | null
           logradouro: string | null
           name: string
           numero: string | null
@@ -367,6 +368,7 @@ export type Database = {
           status: string
           uf: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           address?: string | null
@@ -384,6 +386,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          invite_status?: string | null
           logradouro?: string | null
           name: string
           numero?: string | null
@@ -394,6 +397,7 @@ export type Database = {
           status?: string
           uf?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           address?: string | null
@@ -411,6 +415,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          invite_status?: string | null
           logradouro?: string | null
           name?: string
           numero?: string | null
@@ -421,6 +426,7 @@ export type Database = {
           status?: string
           uf?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1547,6 +1553,8 @@ export const Constants = {
 //   cidade: text (nullable)
 //   uf: text (nullable)
 //   company_name: text (nullable)
+//   user_id: uuid (nullable)
+//   invite_status: text (nullable, default: 'Não Convidado'::text)
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1801,6 +1809,7 @@ export const Constants = {
 //   PRIMARY KEY employee_documents_pkey: PRIMARY KEY (id)
 // Table: employees
 //   PRIMARY KEY employees_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY employees_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: followup_roteiro
 //   FOREIGN KEY followup_roteiro_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY followup_roteiro_pkey: PRIMARY KEY (id)
