@@ -107,6 +107,7 @@ export function EmployeeFormSheet({
     cpf: '',
     rg: '',
     cnpj: '',
+    company_name: '',
     birth_date: '',
     cep: '',
     logradouro: '',
@@ -134,6 +135,7 @@ export function EmployeeFormSheet({
           cpf: employeeToEdit.cpf || '',
           rg: employeeToEdit.rg || '',
           cnpj: employeeToEdit.cnpj || '',
+          company_name: employeeToEdit.company_name || '',
           birth_date: employeeToEdit.birth_date || '',
           cep: employeeToEdit.cep || '',
           logradouro: employeeToEdit.logradouro || '',
@@ -163,6 +165,7 @@ export function EmployeeFormSheet({
           cpf: '',
           rg: '',
           cnpj: '',
+          company_name: '',
           birth_date: '',
           cep: '',
           logradouro: '',
@@ -273,17 +276,54 @@ export function EmployeeFormSheet({
     setLoading(false)
   }
 
+  const maskPhone = (val: string) => {
+    let v = val.replace(/\D/g, '')
+    if (v.length > 11) v = v.slice(0, 11)
+    if (v.length > 10) return v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
+    if (v.length > 5) return v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3')
+    if (v.length > 2) return v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2')
+    if (v.length > 0) return v.replace(/^(\d{0,2})$/, '($1')
+    return v
+  }
+
+  const maskCNPJ = (val: string) => {
+    let v = val.replace(/\D/g, '')
+    if (v.length > 14) v = v.slice(0, 14)
+    return v.replace(/^(\d{2})(\d{3})?(\d{3})?(\d{4})?(\d{2})?$/, (m, p1, p2, p3, p4, p5) => {
+      let r = p1
+      if (p2) r += `.${p2}`
+      if (p3) r += `.${p3}`
+      if (p4) r += `/${p4}`
+      if (p5) r += `-${p5}`
+      return r
+    })
+  }
+
+  const maskCEP = (val: string) => {
+    let v = val.replace(/\D/g, '')
+    if (v.length > 8) v = v.slice(0, 8)
+    if (v.length > 5) return v.replace(/^(\d{5})(\d{1,3})$/, '$1-$2')
+    return v
+  }
+
   const renderInputRow = (label: string, field: keyof typeof data, type = 'text', span = 1) => (
     <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
       <Label className="text-xs">{label}</Label>
       <Input
         type={type}
         value={data[field]}
-        onChange={(e) =>
-          field === 'cep'
-            ? handleCep(e.target.value)
-            : setData({ ...data, [field]: e.target.value })
-        }
+        onChange={(e) => {
+          let val = e.target.value
+          if (field === 'phone') val = maskPhone(val)
+          if (field === 'cnpj') val = maskCNPJ(val)
+          if (field === 'cep') val = maskCEP(val)
+
+          if (field === 'cep') {
+            handleCep(val)
+          } else {
+            setData({ ...data, [field]: val })
+          }
+        }}
         className="h-8 text-sm"
       />
     </div>
@@ -310,6 +350,9 @@ export function EmployeeFormSheet({
               {renderInputRow('CPF', 'cpf')}
               {renderInputRow('RG', 'rg')}
               {renderInputRow('Data de Nasc.', 'birth_date', 'date')}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              {renderInputRow('Nome da Empresa / Razão Social', 'company_name', 'text', 1)}
               {renderInputRow('CNPJ', 'cnpj')}
             </div>
           </div>
@@ -345,6 +388,7 @@ export function EmployeeFormSheet({
                   <SelectContent>
                     <SelectItem value="CLT">CLT</SelectItem>
                     <SelectItem value="MEI">MEI</SelectItem>
+                    <SelectItem value="LTDA">LTDA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

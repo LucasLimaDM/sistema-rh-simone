@@ -202,13 +202,12 @@ export default function Layout() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="h-9 w-9 border-2 border-primary/20 cursor-pointer">
-                      <AvatarImage
-                        src={
-                          profile?.avatar_url ||
-                          'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=1'
-                        }
-                      />
-                      <AvatarFallback>{(profile?.name || 'U').charAt(0)}</AvatarFallback>
+                      {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} /> : null}
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                        {(profile?.name || user?.user_metadata?.name || 'U')
+                          .charAt(0)
+                          .toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
