@@ -48,7 +48,7 @@ const navItems = [
   { title: 'Colaboradores', url: '/colaboradores', icon: Users },
   { title: 'Controle de Ponto', url: '/ponto', icon: Clock },
   { title: 'Gestão de Escalas', url: '/escalas', icon: CalendarDays },
-  { title: 'Usuários', url: '/usuarios', icon: Settings },
+  { title: 'Gestão de Equipes', url: '/equipes', icon: Settings },
 ]
 
 export default function Layout() {

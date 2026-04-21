@@ -305,6 +305,7 @@ export type Database = {
           document_type: string
           employee_id: string
           expiry_date: string | null
+          file_url: string | null
           id: string
           status: string
           updated_at: string
@@ -314,6 +315,7 @@ export type Database = {
           document_type: string
           employee_id: string
           expiry_date?: string | null
+          file_url?: string | null
           id?: string
           status?: string
           updated_at?: string
@@ -323,6 +325,7 @@ export type Database = {
           document_type?: string
           employee_id?: string
           expiry_date?: string | null
+          file_url?: string | null
           id?: string
           status?: string
           updated_at?: string
@@ -341,55 +344,79 @@ export type Database = {
         Row: {
           address: string | null
           admission_date: string | null
+          bairro: string | null
           birth_date: string | null
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
           company: string
+          complemento: string | null
           contract_type: string
           cpf: string | null
           created_at: string
           email: string | null
           id: string
+          logradouro: string | null
           name: string
+          numero: string | null
           observations: string | null
+          phone: string | null
           rg: string | null
           role: string
           status: string
+          uf: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           admission_date?: string | null
+          bairro?: string | null
           birth_date?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           company: string
+          complemento?: string | null
           contract_type?: string
           cpf?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          logradouro?: string | null
           name: string
+          numero?: string | null
           observations?: string | null
+          phone?: string | null
           rg?: string | null
           role: string
           status?: string
+          uf?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           admission_date?: string | null
+          bairro?: string | null
           birth_date?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           company?: string
+          complemento?: string | null
           contract_type?: string
           cpf?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          logradouro?: string | null
           name?: string
+          numero?: string | null
           observations?: string | null
+          phone?: string | null
           rg?: string | null
           role?: string
           status?: string
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1490,6 +1517,7 @@ export const Constants = {
 //   status: text (not null, default: 'up-to-date'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   file_url: text (nullable)
 // Table: employees
 //   id: uuid (not null, default: gen_random_uuid())
 //   company: text (not null)
@@ -1507,6 +1535,14 @@ export const Constants = {
 //   cnpj: text (nullable)
 //   admission_date: date (nullable)
 //   observations: text (nullable)
+//   phone: text (nullable)
+//   cep: text (nullable)
+//   logradouro: text (nullable)
+//   numero: text (nullable)
+//   complemento: text (nullable)
+//   bairro: text (nullable)
+//   cidade: text (nullable)
+//   uf: text (nullable)
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)

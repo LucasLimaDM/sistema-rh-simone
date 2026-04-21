@@ -273,17 +273,7 @@ export function EmployeeFormSheet({
     setLoading(false)
   }
 
-  const InputRow = ({
-    label,
-    field,
-    type = 'text',
-    span = 1,
-  }: {
-    label: string
-    field: keyof typeof data
-    type?: string
-    span?: number
-  }) => (
+  const renderInputRow = (label: string, field: keyof typeof data, type = 'text', span = 1) => (
     <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
       <Label className="text-xs">{label}</Label>
       <Input
@@ -314,27 +304,27 @@ export function EmployeeFormSheet({
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-primary uppercase">Dados Pessoais</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <InputRow label="Nome Completo" field="name" span={2} />
-              <InputRow label="E-mail" field="email" type="email" />
-              <InputRow label="Celular" field="phone" />
-              <InputRow label="CPF" field="cpf" />
-              <InputRow label="RG" field="rg" />
-              <InputRow label="Data de Nasc." field="birth_date" type="date" />
-              <InputRow label="CNPJ" field="cnpj" />
+              {renderInputRow('Nome Completo', 'name', 'text', 2)}
+              {renderInputRow('E-mail', 'email', 'email')}
+              {renderInputRow('Celular', 'phone')}
+              {renderInputRow('CPF', 'cpf')}
+              {renderInputRow('RG', 'rg')}
+              {renderInputRow('Data de Nasc.', 'birth_date', 'date')}
+              {renderInputRow('CNPJ', 'cnpj')}
             </div>
           </div>
 
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-primary uppercase">Endereço</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <InputRow label="CEP" field="cep" />
-              <InputRow label="Logradouro" field="logradouro" />
-              <InputRow label="Número" field="numero" />
-              <InputRow label="Complemento" field="complemento" />
-              <InputRow label="Bairro" field="bairro" />
+              {renderInputRow('CEP', 'cep')}
+              {renderInputRow('Logradouro', 'logradouro')}
+              {renderInputRow('Número', 'numero')}
+              {renderInputRow('Complemento', 'complemento')}
+              {renderInputRow('Bairro', 'bairro')}
               <div className="grid grid-cols-2 gap-2">
-                <InputRow label="Cidade" field="cidade" />
-                <InputRow label="UF" field="uf" />
+                {renderInputRow('Cidade', 'cidade')}
+                {renderInputRow('UF', 'uf')}
               </div>
             </div>
           </div>
@@ -342,7 +332,7 @@ export function EmployeeFormSheet({
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-primary uppercase">Vínculo</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <InputRow label="Cargo/Função" field="role" />
+              {renderInputRow('Cargo/Função', 'role')}
               <div className="space-y-1.5">
                 <Label className="text-xs">Tipo de Vínculo</Label>
                 <Select

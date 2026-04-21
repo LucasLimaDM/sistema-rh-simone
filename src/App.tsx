@@ -33,7 +33,7 @@ const AppRoutes = () => (
       <Route path="/colaboradores" element={<Employees />} />
       <Route path="/ponto" element={<TimeTracking />} />
       <Route path="/escalas" element={<WorkScales />} />
-      <Route path="/usuarios" element={<Users />} />
+      <Route path="/equipes" element={<Users />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

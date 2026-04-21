@@ -84,18 +84,18 @@ export default function Users() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestão de Usuários</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Gestão de Equipes</h1>
           <p className="text-muted-foreground mt-1">Controle de acesso e permissões do sistema</p>
         </div>
         <Dialog open={isNewUserOpen} onOpenChange={setIsNewUserOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2 shadow-sm">
-              <Plus className="h-4 w-4" /> Novo Usuário
+              <Plus className="h-4 w-4" /> Novo Membro
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Convidar Novo Usuário</DialogTitle>
+              <DialogTitle>Convidar Membro para Equipe</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
