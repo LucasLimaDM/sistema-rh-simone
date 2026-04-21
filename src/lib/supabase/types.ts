@@ -365,6 +365,7 @@ export type Database = {
           phone: string | null
           rg: string | null
           role: string
+          role_id: string | null
           status: string
           uf: string | null
           updated_at: string
@@ -394,6 +395,7 @@ export type Database = {
           phone?: string | null
           rg?: string | null
           role: string
+          role_id?: string | null
           status?: string
           uf?: string | null
           updated_at?: string
@@ -423,12 +425,21 @@ export type Database = {
           phone?: string | null
           rg?: string | null
           role?: string
+          role_id?: string | null
           status?: string
           uf?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'employees_role_id_fkey'
+            columns: ['role_id']
+            isOneToOne: false
+            referencedRelation: 'hr_roles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       followup_roteiro: {
         Row: {
@@ -693,6 +704,33 @@ export type Database = {
           id?: string
           name?: string
           role?: string
+        }
+        Relationships: []
+      }
+      hr_roles: {
+        Row: {
+          company: string
+          created_at: string
+          daily_rate: number
+          hourly_rate: number
+          id: string
+          name: string
+        }
+        Insert: {
+          company: string
+          created_at?: string
+          daily_rate?: number
+          hourly_rate?: number
+          id?: string
+          name: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          daily_rate?: number
+          hourly_rate?: number
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -1555,6 +1593,7 @@ export const Constants = {
 //   company_name: text (nullable)
 //   user_id: uuid (nullable)
 //   invite_status: text (nullable, default: 'Não Convidado'::text)
+//   role_id: uuid (nullable)
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1619,6 +1658,13 @@ export const Constants = {
 //   company: text (not null, default: 'Primer Pisos'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   avatar_url: text (nullable)
+// Table: hr_roles
+//   id: uuid (not null, default: gen_random_uuid())
+//   company: text (not null)
+//   name: text (not null)
+//   hourly_rate: numeric (not null, default: 0)
+//   daily_rate: numeric (not null, default: 0)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: image_bank
 //   id: uuid (not null, default: gen_random_uuid())
 //   url: text (not null)
@@ -1809,6 +1855,7 @@ export const Constants = {
 //   PRIMARY KEY employee_documents_pkey: PRIMARY KEY (id)
 // Table: employees
 //   PRIMARY KEY employees_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY employees_role_id_fkey: FOREIGN KEY (role_id) REFERENCES hr_roles(id) ON DELETE SET NULL
 //   FOREIGN KEY employees_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: followup_roteiro
 //   FOREIGN KEY followup_roteiro_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
@@ -1833,6 +1880,8 @@ export const Constants = {
 // Table: hr_profiles
 //   FOREIGN KEY hr_profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY hr_profiles_pkey: PRIMARY KEY (id)
+// Table: hr_roles
+//   PRIMARY KEY hr_roles_pkey: PRIMARY KEY (id)
 // Table: image_bank
 //   FOREIGN KEY image_bank_folder_id_fkey: FOREIGN KEY (folder_id) REFERENCES image_folders(id) ON DELETE SET NULL
 //   FOREIGN KEY image_bank_industria_id_fkey: FOREIGN KEY (industria_id) REFERENCES image_industrias(id) ON DELETE SET NULL
@@ -1952,6 +2001,10 @@ export const Constants = {
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = historico_etapas.lead_id)))
 // Table: hr_profiles
 //   Policy "hr_profiles_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: hr_roles
+//   Policy "authenticated_all_hr_roles" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: image_bank

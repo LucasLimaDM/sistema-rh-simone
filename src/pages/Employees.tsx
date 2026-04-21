@@ -35,7 +35,7 @@ export default function Employees() {
     setLoading(true)
     const { data } = await supabase
       .from('employees')
-      .select('*, employee_documents(*)')
+      .select('*, employee_documents(*), hr_roles(hourly_rate, daily_rate)')
       .eq('company', company)
       .order('name', { ascending: true })
 
@@ -229,7 +229,16 @@ export default function Employees() {
                     </div>
                   </TableCell>
                   <TableCell>{emp.contract_type}</TableCell>
-                  <TableCell>{emp.role}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{emp.role}</span>
+                      {emp.hr_roles?.hourly_rate !== undefined && (
+                        <span className="text-[10px] text-muted-foreground">
+                          R$ {Number(emp.hr_roles.hourly_rate).toFixed(2)}/h
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {emp.invite_status === 'Ativo' ? (
                       <Badge variant="default" className="bg-green-500 hover:bg-green-600">

@@ -192,9 +192,8 @@ export default function TimeTracking() {
       out1: row.out1 || null,
       in2: row.in2 || null,
       out2: row.out2 || null,
-      total_hours: row.total_hours.toFixed(2),
+      total_hours: parseFloat(row.total_hours.toFixed(2)),
     }
-
     if (row.id) {
       if (!row.in1 && !row.out1 && !row.in2 && !row.out2) {
         await supabase.from('time_tracks').delete().eq('id', row.id)
@@ -257,11 +256,15 @@ export default function TimeTracking() {
                 <div className="flex gap-6">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase mb-1">Valor Hora</p>
-                    <p className="font-mono font-medium text-primary">R$ {hourlyRate.toFixed(2)}</p>
+                    <p className="font-mono font-medium text-primary">
+                      {hourlyRate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground uppercase mb-1">Diária (8h)</p>
-                    <p className="font-mono font-medium text-primary">R$ {dailyRate.toFixed(2)}</p>
+                    <p className="font-mono font-medium text-primary">
+                      {dailyRate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -286,7 +289,7 @@ export default function TimeTracking() {
                 <CardTitle className="text-sm text-primary">Valor Total</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 text-2xl font-bold text-primary">
-                R$ {stats.totalValue.toFixed(2)}
+                {stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </CardContent>
             </Card>
             <Card>
@@ -403,7 +406,10 @@ export default function TimeTracking() {
                       </TableCell>
                       <TableCell className="text-right font-mono font-medium text-primary">
                         {row.total_hours > 0
-                          ? `R$ ${(row.total_hours * hourlyRate).toFixed(2)}`
+                          ? (row.total_hours * hourlyRate).toLocaleString('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            })
                           : '-'}
                       </TableCell>
                     </TableRow>

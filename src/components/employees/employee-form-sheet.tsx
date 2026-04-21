@@ -401,7 +401,7 @@ export function EmployeeFormSheet({
                   <SelectContent>
                     {roles.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
-                        {r.name}
+                        {r.name} {r.hourly_rate ? `(R$ ${Number(r.hourly_rate).toFixed(2)}/h)` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Trash2, Plus, ArrowLeft } from 'lucide-react'
+import { Trash2, Plus, ArrowLeft, Edit2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
 
@@ -25,6 +25,7 @@ export default function Roles() {
   const [hourlyRate, setHourlyRate] = useState('')
   const [dailyRate, setDailyRate] = useState('')
   const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const fetchRoles = async () => {
@@ -42,26 +43,60 @@ export default function Roles() {
 
   const handleHourlyChange = (val: string) => {
     setHourlyRate(val)
-    const h = parseFloat(val.replace(',', '.'))
+    const h = parseFloat(val.toString().replace(',', '.'))
     if (!isNaN(h)) {
       setDailyRate((h * 8).toFixed(2))
+    } else {
+      setDailyRate('')
     }
+  }
+
+  const handleEdit = (r: any) => {
+    setEditingId(r.id)
+    setName(r.name)
+    setHourlyRate(r.hourly_rate.toString())
+    setDailyRate(r.daily_rate.toString())
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setName('')
+    setHourlyRate('')
+    setDailyRate('')
   }
 
   const handleSave = async () => {
     if (!name) return
     setLoading(true)
-    const { error } = await supabase.from('hr_roles').insert({
+
+    const payload = {
       company,
       name,
-      hourly_rate: parseFloat(hourlyRate.replace(',', '.')) || 0,
-      daily_rate: parseFloat(dailyRate.replace(',', '.')) || 0,
-    })
-    if (!error) {
-      toast({ title: 'Cargo salvo com sucesso' })
+      hourly_rate: parseFloat(hourlyRate.toString().replace(',', '.')) || 0,
+      daily_rate: parseFloat(dailyRate.toString().replace(',', '.')) || 0,
+    }
+
+    if (editingId) {
+      const { error } = await supabase.from('hr_roles').update(payload).eq('id', editingId)
+      if (!error) {
+        toast({ title: 'Cargo atualizado com sucesso' })
+      } else {
+        toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      }
+    } else {
+      const { error } = await supabase.from('hr_roles').insert(payload)
+      if (!error) {
+        toast({ title: 'Cargo salvo com sucesso' })
+      } else {
+        toast({ title: 'Erro ao salvar', variant: 'destructive' })
+      }
+    }
+
+    if (!editingId || !loading) {
       setName('')
       setHourlyRate('')
       setDailyRate('')
+      setEditingId(null)
       fetchRoles()
     }
     setLoading(false)
@@ -89,10 +124,10 @@ export default function Roles() {
 
       <Card className="shadow-subtle border-border">
         <CardHeader>
-          <CardTitle>Novo Cargo</CardTitle>
+          <CardTitle>{editingId ? 'Editar Cargo' : 'Novo Cargo'}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div className="space-y-2 md:col-span-2">
               <Label>Nome do Cargo</Label>
               <Input
@@ -121,13 +156,22 @@ export default function Roles() {
                 step="0.01"
               />
             </div>
-            <Button
-              className="w-full md:col-span-4"
-              onClick={handleSave}
-              disabled={loading || !name}
-            >
-              <Plus className="h-4 w-4 mr-2" /> Adicionar Cargo
-            </Button>
+            <div className="flex items-center gap-2 md:col-span-5">
+              {editingId && (
+                <Button variant="outline" className="w-full md:w-auto" onClick={handleCancelEdit}>
+                  Cancelar
+                </Button>
+              )}
+              <Button className="w-full md:flex-1" onClick={handleSave} disabled={loading || !name}>
+                {editingId ? (
+                  'Salvar Alterações'
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar Cargo
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -153,14 +197,24 @@ export default function Roles() {
                   R$ {r.daily_rate.toFixed(2)}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(r.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-primary hover:bg-primary/10"
+                      onClick={() => handleEdit(r)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDelete(r.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
