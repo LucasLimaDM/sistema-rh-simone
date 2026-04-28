@@ -74,6 +74,24 @@ export default function Templates() {
   }, [company])
 
   const handleSave = async () => {
+    const requiredPlaceholders: Record<string, string[]> = {
+      Contrato: ['{{NOME_EMPRESA}}', '{{NOME_COLABORADOR}}', '{{CARGO_NOME}}', '{{VALOR_HORA}}'],
+      OrdemServico: ['{{NOME_EMPRESA}}', '{{NOME_COLABORADOR}}', '{{CARGO_NOME}}'],
+      NR: ['{{NOME_EMPRESA}}', '{{NOME_COLABORADOR}}', '{{CPF_COLABORADOR}}', '{{DATA_CURSO}}'],
+    }
+
+    const reqList = requiredPlaceholders[formData.tipo_documento] || []
+    const missing = reqList.filter((p) => !formData.content.includes(p))
+
+    if (missing.length > 0) {
+      toast({
+        title: 'Validação de Template Falhou',
+        description: `O modelo do tipo ${formData.tipo_documento} requer as seguintes tags: ${missing.join(', ')}`,
+        variant: 'destructive',
+      })
+      return
+    }
+
     const isNew = !formData.id
     const payload = {
       empresa_id: empId,

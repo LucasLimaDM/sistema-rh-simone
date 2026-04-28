@@ -248,14 +248,45 @@ export default function Documents() {
       const res = await supabase.functions.invoke('generate-hr-pdf', { body: payload })
       if (res.error) throw res.error
       if (res.data?.pdfDataUri) {
+        const resDataUri = res.data.pdfDataUri
+        const base64Data = resDataUri.split(',')[1]
+        const byteCharacters = atob(base64Data)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        const blob = new Blob([byteArray], { type: 'application/pdf' })
+
+        const fileName = `pdfs/${doc.id}_v${doc.versao_atual}.pdf`
+
+        const { error: uploadError } = await supabase.storage
+          .from('rh_files')
+          .upload(fileName, blob, { contentType: 'application/pdf', upsert: true })
+
+        if (!uploadError) {
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('rh_files').getPublicUrl(fileName)
+          await supabase
+            .from('documento_gerado')
+            .update({ arquivo_pdf_url: publicUrl })
+            .eq('id', doc.id)
+          await supabase
+            .from('documento_versao')
+            .update({ arquivo_pdf_url: publicUrl })
+            .eq('documento_id', doc.id)
+            .eq('versao', doc.versao_atual)
+        }
+
         const a = document.createElement('a')
-        a.href = res.data.pdfDataUri
+        a.href = resDataUri
         a.download = `${doc.titulo}.pdf`
         a.click()
         if (user) logAudit('documento_gerado', doc.id, 'export', user.id)
       }
     } catch (e) {
-      toast({ title: 'Erro', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao exportar PDF.', variant: 'destructive' })
     }
   }
 
@@ -275,6 +306,21 @@ export default function Documents() {
     !missingColSig &&
     (!isContrato || (formData.t1_nome && formData.t1_cpf && formData.t2_nome && formData.t2_cpf))
 
+  if (!empresa) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto p-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Configuração Inicial Pendente</AlertTitle>
+          <AlertDescription>
+            Cadastre ao menos uma Empresa Contratante no módulo de Empresas para poder gerar
+            documentos.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
@@ -285,6 +331,7 @@ export default function Documents() {
           </p>
         </div>
         <Button
+          disabled={templates.length === 0 || employees.length === 0}
           onClick={() => {
             setFormData({
               id: '',
@@ -305,6 +352,17 @@ export default function Documents() {
           <Plus className="h-4 w-4 mr-2" /> Gerar Documento
         </Button>
       </div>
+
+      {(templates.length === 0 || employees.length === 0) && (
+        <Alert className="bg-orange-50 border-orange-200 text-orange-800">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertTitle>Ação Bloqueada</AlertTitle>
+          <AlertDescription>
+            Para gerar documentos, você precisa ter cadastrado ao menos um{' '}
+            <strong>Colaborador</strong> e um <strong>Modelo Documental</strong>.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="p-0">

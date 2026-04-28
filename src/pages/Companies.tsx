@@ -84,9 +84,26 @@ export default function Companies() {
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (event) => setFormData({ ...formData, [field]: event.target?.result as string })
-    reader.readAsDataURL(file)
+
+    toast({ title: 'Fazendo upload...', description: 'Aguarde o processamento.' })
+    const fileExt = file.name.split('.').pop()
+    const fileName = `empresa_${field}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+    const filePath = `empresas/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('rh_files')
+      .upload(filePath, file, { upsert: true })
+
+    if (uploadError) {
+      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
+      return
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('rh_files').getPublicUrl(filePath)
+    setFormData({ ...formData, [field]: publicUrl })
+    toast({ title: 'Upload concluído', description: 'Arquivo salvo com sucesso.' })
   }
 
   return (
