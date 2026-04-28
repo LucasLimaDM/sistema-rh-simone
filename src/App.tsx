@@ -9,6 +9,9 @@ import TimeTracking from './pages/TimeTracking'
 import Roles from './pages/Roles'
 import WorkScales from './pages/WorkScales'
 import Users from './pages/Users'
+import Templates from './pages/Templates'
+import Documents from './pages/Documents'
+import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import FirstAccess from './pages/FirstAccess'
@@ -38,6 +41,9 @@ const AppRoutes = () => (
       <Route path="/ponto" element={<TimeTracking />} />
       <Route path="/escalas" element={<WorkScales />} />
       <Route path="/equipes" element={<Users />} />
+      <Route path="/modelos" element={<Templates />} />
+      <Route path="/documentos" element={<Documents />} />
+      <Route path="/configuracoes" element={<Settings />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

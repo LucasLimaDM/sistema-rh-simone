@@ -41,6 +41,8 @@ import {
   LogOut,
   Building2,
   Clock,
+  FileText,
+  Files,
 } from 'lucide-react'
 import { Company, AppContextType } from '@/lib/types'
 const navItems = [
@@ -48,7 +50,10 @@ const navItems = [
   { title: 'Colaboradores', url: '/colaboradores', icon: Users },
   { title: 'Controle de Ponto', url: '/ponto', icon: Clock },
   { title: 'Gestão de Escalas', url: '/escalas', icon: CalendarDays },
-  { title: 'Gestão de Equipes', url: '/equipes', icon: Settings },
+  { title: 'Modelos', url: '/modelos', icon: FileText },
+  { title: 'Documentos', url: '/documentos', icon: Files },
+  { title: 'Gestão de Equipes', url: '/equipes', icon: Users },
+  { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ]
 
 export default function Layout() {
