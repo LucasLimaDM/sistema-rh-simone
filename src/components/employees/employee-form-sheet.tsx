@@ -204,16 +204,14 @@ export function EmployeeFormSheet({
     }
 
     if (!employeeToEdit?.id) {
-      await supabase
-        .from('employees')
-        .insert({
-          id: newId,
-          name: data.nome_completo,
-          company: company,
-          contract_type: data.tipo_colaborador,
-          role: selectedRole?.nome || 'Colaborador',
-          status: 'ativo',
-        })
+      await supabase.from('employees').insert({
+        id: newId,
+        name: data.nome_completo,
+        company: company,
+        contract_type: data.tipo_colaborador,
+        role: selectedRole?.nome || 'Colaborador',
+        status: 'ativo',
+      })
       await supabase.from('colaborador').insert({ id: newId, ...payload })
       if (user) await logAudit('colaborador', newId, 'create', user.id, null, payload)
     } else {

@@ -30,8 +30,9 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { FileText, Plus, AlertCircle, Trash2 } from 'lucide-react'
+import { FileText, Plus, AlertCircle, Trash2, Edit2, Copy } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
 
@@ -40,6 +41,7 @@ export default function Templates() {
   const { user } = useAuth()
   const [empId, setEmpId] = useState<string>('')
   const [templates, setTemplates] = useState<any[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({
     id: '',
@@ -119,6 +121,58 @@ export default function Templates() {
     fetchTemplates()
   }
 
+  const handleBatchDelete = async () => {
+    if (!confirm(`Deseja excluir ${selectedIds.length} modelos?`)) return
+    await supabase.from('modelo').delete().in('id', selectedIds)
+    if (user) {
+      selectedIds.forEach((id) => logAudit('modelo', id, 'delete', user.id))
+    }
+    setSelectedIds([])
+    fetchTemplates()
+  }
+
+  const handleBatchClone = async () => {
+    const toClone = templates.filter((t) => selectedIds.includes(t.id))
+    for (const t of toClone) {
+      const payload = {
+        empresa_id: t.empresa_id,
+        nome: `${t.nome} (Cópia)`,
+        tipo_documento: t.tipo_documento,
+        campos_config: t.campos_config,
+        versao_atual: 1,
+        arquivo_original_url: t.arquivo_original_url,
+        placeholders: t.placeholders,
+        regras_autopreenchimento: t.regras_autopreenchimento,
+        regras_assinatura: t.regras_assinatura,
+        campos_editaveis_pdf: t.campos_editaveis_pdf,
+        ativo: true,
+      }
+      const res = await supabase.from('modelo').insert(payload).select().single()
+      if (res.data && user) {
+        logAudit('modelo', res.data.id, 'clone', user.id, null, res.data)
+        await supabase.from('modelo_versao').insert({
+          modelo_id: res.data.id,
+          versao: 1,
+          arquivo_url: 'template_html',
+          campos_config_snapshot: payload.campos_config,
+          alterado_por_usuario_id: user.id,
+        })
+      }
+    }
+    toast({ title: 'Sucesso', description: `${toClone.length} modelos clonados.` })
+    setSelectedIds([])
+    fetchTemplates()
+  }
+
+  const toggleAll = () => {
+    if (selectedIds.length === templates.length) setSelectedIds([])
+    else setSelectedIds(templates.map((t) => t.id))
+  }
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
@@ -155,11 +209,28 @@ export default function Templates() {
         </AlertDescription>
       </Alert>
 
+      {selectedIds.length > 0 && (
+        <div className="flex gap-2 bg-muted/30 p-2 rounded border border-dashed">
+          <Button variant="secondary" size="sm" onClick={handleBatchClone}>
+            <Copy className="h-4 w-4 mr-2" /> Clonar ({selectedIds.length})
+          </Button>
+          <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
+            <Trash2 className="h-4 w-4 mr-2" /> Excluir ({selectedIds.length})
+          </Button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedIds.length === templates.length && templates.length > 0}
+                    onCheckedChange={toggleAll}
+                  />
+                </TableHead>
                 <TableHead>Nome do Modelo</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Versão Atual</TableHead>
@@ -169,8 +240,16 @@ export default function Templates() {
             <TableBody>
               {templates.map((t) => (
                 <TableRow key={t.id}>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" /> {t.nome}
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.includes(t.id)}
+                      onCheckedChange={() => toggleSelection(t.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" /> {t.nome}
+                    </div>
                   </TableCell>
                   <TableCell>{t.tipo_documento}</TableCell>
                   <TableCell>v{t.versao_atual}</TableCell>

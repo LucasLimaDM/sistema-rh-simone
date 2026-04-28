@@ -106,15 +106,13 @@ export default function Roles() {
       if (user) logAudit('cargo', newId, 'update', user.id, null, payload)
       toast({ title: 'Cargo atualizado' })
     } else {
-      await supabase
-        .from('hr_roles')
-        .insert({
-          id: newId,
-          company,
-          name,
-          hourly_rate: payload.valor_hora,
-          daily_rate: payload.valor_diaria,
-        })
+      await supabase.from('hr_roles').insert({
+        id: newId,
+        company,
+        name,
+        hourly_rate: payload.valor_hora,
+        daily_rate: payload.valor_diaria,
+      })
       await supabase.from('cargo').insert({ id: newId, ...payload })
       if (user) logAudit('cargo', newId, 'create', user.id, null, payload)
       toast({ title: 'Cargo salvo' })

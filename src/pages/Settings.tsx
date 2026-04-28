@@ -35,6 +35,7 @@ export default function Settings() {
   const { user } = useAuth()
   const [profiles, setProfiles] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
   const [formData, setFormData] = useState({
     id: '',
     nome_completo: '',
@@ -55,6 +56,18 @@ export default function Settings() {
   }, [])
 
   const handleSave = async () => {
+    if (newPassword && user?.id === formData.id) {
+      const { error: authError } = await supabase.auth.updateUser({ password: newPassword })
+      if (authError) {
+        toast({
+          title: 'Erro ao alterar senha',
+          description: authError.message,
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     const payload = {
       nome_completo: formData.nome_completo,
       tipo_usuario: formData.tipo_usuario,
@@ -66,6 +79,7 @@ export default function Settings() {
       if (user) logAudit('usuario_sistema', formData.id, 'update', user.id, null, payload)
       toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso.' })
       setIsOpen(false)
+      setNewPassword('')
       fetchProfiles()
     }
   }
@@ -136,6 +150,7 @@ export default function Settings() {
                       size="sm"
                       onClick={() => {
                         setFormData({ ...p, cpf: p.cpf || '' })
+                        setNewPassword('')
                         setIsOpen(true)
                       }}
                     >
@@ -186,6 +201,17 @@ export default function Settings() {
                 </SelectContent>
               </Select>
             </div>
+            {user?.id === formData.id && (
+              <div className="space-y-2">
+                <Label>Nova Senha (Opcional)</Label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Deixe em branco para não alterar"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Assinatura (Imagem PNG p/ PDFs)</Label>
               <div className="flex items-center gap-4">
