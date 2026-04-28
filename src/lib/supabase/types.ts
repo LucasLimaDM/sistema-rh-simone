@@ -677,33 +677,123 @@ export type Database = {
           },
         ]
       }
+      hr_document_templates: {
+        Row: {
+          category: string
+          company: string
+          content: string
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category: string
+          company: string
+          content: string
+          created_at?: string
+          id?: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: string
+          company?: string
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      hr_generated_documents: {
+        Row: {
+          company: string
+          content: string
+          created_at: string
+          employee_id: string | null
+          id: string
+          pdf_url: string | null
+          status: string
+          template_id: string | null
+          title: string
+        }
+        Insert: {
+          company: string
+          content: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          pdf_url?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+        }
+        Update: {
+          company?: string
+          content?: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          pdf_url?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'hr_generated_documents_employee_id_fkey'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'hr_generated_documents_template_id_fkey'
+            columns: ['template_id']
+            isOneToOne: false
+            referencedRelation: 'hr_document_templates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       hr_profiles: {
         Row: {
           avatar_url: string | null
           company: string
+          cpf: string | null
           created_at: string
           email: string
           id: string
           name: string
           role: string
+          signature_url: string | null
         }
         Insert: {
           avatar_url?: string | null
           company?: string
+          cpf?: string | null
           created_at?: string
           email: string
           id: string
           name: string
           role?: string
+          signature_url?: string | null
         }
         Update: {
           avatar_url?: string | null
           company?: string
+          cpf?: string | null
           created_at?: string
           email?: string
           id?: string
           name?: string
           role?: string
+          signature_url?: string | null
         }
         Relationships: []
       }
@@ -1650,6 +1740,25 @@ export const Constants = {
 //   etapa: text (not null)
 //   data_entrada: timestamp with time zone (not null, default: now())
 //   data_saida: timestamp with time zone (nullable)
+// Table: hr_document_templates
+//   id: uuid (not null, default: gen_random_uuid())
+//   title: text (not null)
+//   category: text (not null)
+//   content: text (not null)
+//   company: text (not null)
+//   version: integer (not null, default: 1)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: hr_generated_documents
+//   id: uuid (not null, default: gen_random_uuid())
+//   template_id: uuid (nullable)
+//   employee_id: uuid (nullable)
+//   title: text (not null)
+//   content: text (not null)
+//   status: text (not null, default: 'Gerado'::text)
+//   pdf_url: text (nullable)
+//   company: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: hr_profiles
 //   id: uuid (not null)
 //   email: text (not null)
@@ -1658,6 +1767,8 @@ export const Constants = {
 //   company: text (not null, default: 'Primer Pisos'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   avatar_url: text (nullable)
+//   cpf: text (nullable)
+//   signature_url: text (nullable)
 // Table: hr_roles
 //   id: uuid (not null, default: gen_random_uuid())
 //   company: text (not null)
@@ -1877,6 +1988,12 @@ export const Constants = {
 // Table: historico_etapas
 //   FOREIGN KEY historico_etapas_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY historico_etapas_pkey: PRIMARY KEY (id)
+// Table: hr_document_templates
+//   PRIMARY KEY hr_document_templates_pkey: PRIMARY KEY (id)
+// Table: hr_generated_documents
+//   FOREIGN KEY hr_generated_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   PRIMARY KEY hr_generated_documents_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY hr_generated_documents_template_id_fkey: FOREIGN KEY (template_id) REFERENCES hr_document_templates(id) ON DELETE SET NULL
 // Table: hr_profiles
 //   FOREIGN KEY hr_profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY hr_profiles_pkey: PRIMARY KEY (id)
@@ -1999,6 +2116,14 @@ export const Constants = {
 //   Policy "Workspace access for historico_etapas" (ALL, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = historico_etapas.lead_id)))
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM leads   WHERE (leads.id = historico_etapas.lead_id)))
+// Table: hr_document_templates
+//   Policy "hr_document_templates_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: hr_generated_documents
+//   Policy "hr_generated_documents_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: hr_profiles
 //   Policy "hr_profiles_policy" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
