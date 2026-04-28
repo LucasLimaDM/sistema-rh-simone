@@ -9,6 +9,135 @@ export type Database = {
   }
   public: {
     Tables: {
+      auditoria_documento: {
+        Row: {
+          acao: string
+          antes: Json | null
+          created_at: string
+          depois: Json | null
+          entidade: string
+          entidade_id: string
+          id: string
+          usuario_id: string
+        }
+        Insert: {
+          acao: string
+          antes?: Json | null
+          created_at?: string
+          depois?: Json | null
+          entidade: string
+          entidade_id: string
+          id?: string
+          usuario_id: string
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          created_at?: string
+          depois?: Json | null
+          entidade?: string
+          entidade_id?: string
+          id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'auditoria_documento_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'usuario_sistema'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      campo_modelo: {
+        Row: {
+          chave_placeholder: string
+          config_extra: Json | null
+          fonte_dado: string
+          id: string
+          modelo_id: string
+          nome_campo: string
+          obrigatorio: boolean
+          ordem: number
+          tipo: string
+        }
+        Insert: {
+          chave_placeholder: string
+          config_extra?: Json | null
+          fonte_dado: string
+          id?: string
+          modelo_id: string
+          nome_campo: string
+          obrigatorio?: boolean
+          ordem?: number
+          tipo: string
+        }
+        Update: {
+          chave_placeholder?: string
+          config_extra?: Json | null
+          fonte_dado?: string
+          id?: string
+          modelo_id?: string
+          nome_campo?: string
+          obrigatorio?: boolean
+          ordem?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'campo_modelo_modelo_id_fkey'
+            columns: ['modelo_id']
+            isOneToOne: false
+            referencedRelation: 'modelo'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      cargo: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao_rich_text: Json
+          empresa_id: string
+          id: string
+          nome: string
+          updated_at: string
+          valor_diaria: number
+          valor_hora: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao_rich_text?: Json
+          empresa_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+          valor_diaria?: number
+          valor_hora?: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao_rich_text?: Json
+          empresa_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          valor_diaria?: number
+          valor_hora?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cargo_empresa_id_fkey'
+            columns: ['empresa_id']
+            isOneToOne: false
+            referencedRelation: 'empresa_contratante'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       catalog_items: {
         Row: {
           acabamento_id: string | null
@@ -153,6 +282,351 @@ export type Database = {
           stage_type?: string
         }
         Relationships: []
+      }
+      colaborador: {
+        Row: {
+          assinatura_url: string | null
+          ativo: boolean
+          cargo_descricao_snapshot: Json
+          cargo_id: string
+          cargo_nome_snapshot: string
+          cnpj: string | null
+          cpf: string
+          created_at: string
+          dados_dinamicos: Json | null
+          data_nascimento: string | null
+          email: string
+          empresa_id: string
+          endereco: Json
+          id: string
+          nome_completo: string
+          rg: string | null
+          telefone: string | null
+          tipo_colaborador: string
+          updated_at: string
+          valor_diaria_snapshot: number
+          valor_hora_snapshot: number
+        }
+        Insert: {
+          assinatura_url?: string | null
+          ativo?: boolean
+          cargo_descricao_snapshot?: Json
+          cargo_id: string
+          cargo_nome_snapshot: string
+          cnpj?: string | null
+          cpf: string
+          created_at?: string
+          dados_dinamicos?: Json | null
+          data_nascimento?: string | null
+          email: string
+          empresa_id: string
+          endereco?: Json
+          id?: string
+          nome_completo: string
+          rg?: string | null
+          telefone?: string | null
+          tipo_colaborador: string
+          updated_at?: string
+          valor_diaria_snapshot?: number
+          valor_hora_snapshot?: number
+        }
+        Update: {
+          assinatura_url?: string | null
+          ativo?: boolean
+          cargo_descricao_snapshot?: Json
+          cargo_id?: string
+          cargo_nome_snapshot?: string
+          cnpj?: string | null
+          cpf?: string
+          created_at?: string
+          dados_dinamicos?: Json | null
+          data_nascimento?: string | null
+          email?: string
+          empresa_id?: string
+          endereco?: Json
+          id?: string
+          nome_completo?: string
+          rg?: string | null
+          telefone?: string | null
+          tipo_colaborador?: string
+          updated_at?: string
+          valor_diaria_snapshot?: number
+          valor_hora_snapshot?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'colaborador_cargo_id_fkey'
+            columns: ['cargo_id']
+            isOneToOne: false
+            referencedRelation: 'cargo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'colaborador_empresa_id_fkey'
+            columns: ['empresa_id']
+            isOneToOne: false
+            referencedRelation: 'empresa_contratante'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      configuracao_usuario: {
+        Row: {
+          assinatura_padrao_url: string | null
+          created_at: string
+          id: string
+          notificacoes_email: boolean
+          notificacoes_push: boolean
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          assinatura_padrao_url?: string | null
+          created_at?: string
+          id?: string
+          notificacoes_email?: boolean
+          notificacoes_push?: boolean
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          assinatura_padrao_url?: string | null
+          created_at?: string
+          id?: string
+          notificacoes_email?: boolean
+          notificacoes_push?: boolean
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'configuracao_usuario_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'usuario_sistema'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      documento_anexo: {
+        Row: {
+          arquivo_url: string
+          created_at: string
+          documento_id: string
+          id: string
+          tipo_anexo: string
+        }
+        Insert: {
+          arquivo_url: string
+          created_at?: string
+          documento_id: string
+          id?: string
+          tipo_anexo: string
+        }
+        Update: {
+          arquivo_url?: string
+          created_at?: string
+          documento_id?: string
+          id?: string
+          tipo_anexo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documento_anexo_documento_id_fkey'
+            columns: ['documento_id']
+            isOneToOne: false
+            referencedRelation: 'documento_gerado'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      documento_gerado: {
+        Row: {
+          arquivo_pdf_url: string | null
+          arquivo_renderizado_url: string | null
+          assinatura_colaborador_url: string | null
+          campos_editaveis_pdf: Json
+          cargo_id: string | null
+          colaborador_id: string | null
+          created_at: string
+          created_by: string
+          dados_preenchidos: Json
+          empresa_id: string
+          id: string
+          modelo_id: string
+          modelo_versao_id: string
+          responsavel_empresa_assinatura_url: string | null
+          responsavel_empresa_nome: string | null
+          status: string
+          testemunha_1_assinatura_url: string | null
+          testemunha_1_cpf: string | null
+          testemunha_1_nome: string | null
+          testemunha_2_assinatura_url: string | null
+          testemunha_2_cpf: string | null
+          testemunha_2_nome: string | null
+          tipo_documento: string
+          titulo: string
+          updated_at: string
+          updated_by: string | null
+          versao_atual: number
+        }
+        Insert: {
+          arquivo_pdf_url?: string | null
+          arquivo_renderizado_url?: string | null
+          assinatura_colaborador_url?: string | null
+          campos_editaveis_pdf?: Json
+          cargo_id?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          created_by: string
+          dados_preenchidos?: Json
+          empresa_id: string
+          id?: string
+          modelo_id: string
+          modelo_versao_id: string
+          responsavel_empresa_assinatura_url?: string | null
+          responsavel_empresa_nome?: string | null
+          status: string
+          testemunha_1_assinatura_url?: string | null
+          testemunha_1_cpf?: string | null
+          testemunha_1_nome?: string | null
+          testemunha_2_assinatura_url?: string | null
+          testemunha_2_cpf?: string | null
+          testemunha_2_nome?: string | null
+          tipo_documento: string
+          titulo: string
+          updated_at?: string
+          updated_by?: string | null
+          versao_atual?: number
+        }
+        Update: {
+          arquivo_pdf_url?: string | null
+          arquivo_renderizado_url?: string | null
+          assinatura_colaborador_url?: string | null
+          campos_editaveis_pdf?: Json
+          cargo_id?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          created_by?: string
+          dados_preenchidos?: Json
+          empresa_id?: string
+          id?: string
+          modelo_id?: string
+          modelo_versao_id?: string
+          responsavel_empresa_assinatura_url?: string | null
+          responsavel_empresa_nome?: string | null
+          status?: string
+          testemunha_1_assinatura_url?: string | null
+          testemunha_1_cpf?: string | null
+          testemunha_1_nome?: string | null
+          testemunha_2_assinatura_url?: string | null
+          testemunha_2_cpf?: string | null
+          testemunha_2_nome?: string | null
+          tipo_documento?: string
+          titulo?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao_atual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documento_gerado_cargo_id_fkey'
+            columns: ['cargo_id']
+            isOneToOne: false
+            referencedRelation: 'cargo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_gerado_colaborador_id_fkey'
+            columns: ['colaborador_id']
+            isOneToOne: false
+            referencedRelation: 'colaborador'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_gerado_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'usuario_sistema'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_gerado_empresa_id_fkey'
+            columns: ['empresa_id']
+            isOneToOne: false
+            referencedRelation: 'empresa_contratante'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_gerado_modelo_id_fkey'
+            columns: ['modelo_id']
+            isOneToOne: false
+            referencedRelation: 'modelo'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_gerado_modelo_versao_id_fkey'
+            columns: ['modelo_versao_id']
+            isOneToOne: false
+            referencedRelation: 'modelo_versao'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_gerado_updated_by_fkey'
+            columns: ['updated_by']
+            isOneToOne: false
+            referencedRelation: 'usuario_sistema'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      documento_versao: {
+        Row: {
+          alterado_por_usuario_id: string
+          arquivo_pdf_url: string
+          created_at: string
+          dados_snapshot: Json
+          documento_id: string
+          id: string
+          motivo_alteracao: string | null
+          versao: number
+        }
+        Insert: {
+          alterado_por_usuario_id: string
+          arquivo_pdf_url: string
+          created_at?: string
+          dados_snapshot?: Json
+          documento_id: string
+          id?: string
+          motivo_alteracao?: string | null
+          versao: number
+        }
+        Update: {
+          alterado_por_usuario_id?: string
+          arquivo_pdf_url?: string
+          created_at?: string
+          dados_snapshot?: Json
+          documento_id?: string
+          id?: string
+          motivo_alteracao?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documento_versao_alterado_por_usuario_id_fkey'
+            columns: ['alterado_por_usuario_id']
+            isOneToOne: false
+            referencedRelation: 'usuario_sistema'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documento_versao_documento_id_fkey'
+            columns: ['documento_id']
+            isOneToOne: false
+            referencedRelation: 'documento_gerado'
+            referencedColumns: ['id']
+          },
+        ]
       }
       draft_manuals: {
         Row: {
@@ -440,6 +914,57 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      empresa_contratante: {
+        Row: {
+          assinatura_responsavel_url: string | null
+          ativa: boolean
+          cnpj: string
+          cpf_responsavel: string
+          created_at: string
+          endereco: Json
+          header_template: Json
+          id: string
+          inscricao_estadual: string | null
+          logo_url: string | null
+          nome_fantasia: string
+          nome_responsavel: string
+          razao_social: string
+          updated_at: string
+        }
+        Insert: {
+          assinatura_responsavel_url?: string | null
+          ativa?: boolean
+          cnpj: string
+          cpf_responsavel: string
+          created_at?: string
+          endereco?: Json
+          header_template?: Json
+          id?: string
+          inscricao_estadual?: string | null
+          logo_url?: string | null
+          nome_fantasia: string
+          nome_responsavel: string
+          razao_social: string
+          updated_at?: string
+        }
+        Update: {
+          assinatura_responsavel_url?: string | null
+          ativa?: boolean
+          cnpj?: string
+          cpf_responsavel?: string
+          created_at?: string
+          endereco?: Json
+          header_template?: Json
+          id?: string
+          inscricao_estadual?: string | null
+          logo_url?: string | null
+          nome_fantasia?: string
+          nome_responsavel?: string
+          razao_social?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       followup_roteiro: {
         Row: {
@@ -1059,6 +1584,113 @@ export type Database = {
           },
         ]
       }
+      modelo: {
+        Row: {
+          arquivo_original_url: string
+          ativo: boolean
+          campos_config: Json
+          campos_editaveis_pdf: Json
+          created_at: string
+          descricao: string | null
+          empresa_id: string | null
+          id: string
+          nome: string
+          placeholders: Json
+          regras_assinatura: Json
+          regras_autopreenchimento: Json
+          tipo_documento: string
+          updated_at: string
+          versao_atual: number
+        }
+        Insert: {
+          arquivo_original_url: string
+          ativo?: boolean
+          campos_config?: Json
+          campos_editaveis_pdf?: Json
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          nome: string
+          placeholders?: Json
+          regras_assinatura?: Json
+          regras_autopreenchimento?: Json
+          tipo_documento: string
+          updated_at?: string
+          versao_atual?: number
+        }
+        Update: {
+          arquivo_original_url?: string
+          ativo?: boolean
+          campos_config?: Json
+          campos_editaveis_pdf?: Json
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          nome?: string
+          placeholders?: Json
+          regras_assinatura?: Json
+          regras_autopreenchimento?: Json
+          tipo_documento?: string
+          updated_at?: string
+          versao_atual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'modelo_empresa_id_fkey'
+            columns: ['empresa_id']
+            isOneToOne: false
+            referencedRelation: 'empresa_contratante'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      modelo_versao: {
+        Row: {
+          alterado_por_usuario_id: string
+          arquivo_url: string
+          campos_config_snapshot: Json
+          created_at: string
+          id: string
+          modelo_id: string
+          versao: number
+        }
+        Insert: {
+          alterado_por_usuario_id: string
+          arquivo_url: string
+          campos_config_snapshot?: Json
+          created_at?: string
+          id?: string
+          modelo_id: string
+          versao: number
+        }
+        Update: {
+          alterado_por_usuario_id?: string
+          arquivo_url?: string
+          campos_config_snapshot?: Json
+          created_at?: string
+          id?: string
+          modelo_id?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'modelo_versao_alterado_por_usuario_id_fkey'
+            columns: ['alterado_por_usuario_id']
+            isOneToOne: false
+            referencedRelation: 'usuario_sistema'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'modelo_versao_modelo_id_fkey'
+            columns: ['modelo_id']
+            isOneToOne: false
+            referencedRelation: 'modelo'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       motivos_perda: {
         Row: {
           ativo: boolean
@@ -1331,6 +1963,45 @@ export type Database = {
         }
         Relationships: []
       }
+      usuario_sistema: {
+        Row: {
+          assinatura_url: string | null
+          ativo: boolean
+          cpf: string
+          created_at: string
+          email: string
+          id: string
+          nome_completo: string
+          senha_hash: string
+          tipo_usuario: string
+          updated_at: string
+        }
+        Insert: {
+          assinatura_url?: string | null
+          ativo?: boolean
+          cpf: string
+          created_at?: string
+          email: string
+          id?: string
+          nome_completo: string
+          senha_hash: string
+          tipo_usuario: string
+          updated_at?: string
+        }
+        Update: {
+          assinatura_url?: string | null
+          ativo?: boolean
+          cpf?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome_completo?: string
+          senha_hash?: string
+          tipo_usuario?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vendedores: {
         Row: {
           assinatura_url: string | null
@@ -1590,6 +2261,35 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: auditoria_documento
+//   id: uuid (not null, default: gen_random_uuid())
+//   entidade: text (not null)
+//   entidade_id: uuid (not null)
+//   acao: text (not null)
+//   antes: jsonb (nullable)
+//   depois: jsonb (nullable)
+//   usuario_id: uuid (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: campo_modelo
+//   id: uuid (not null, default: gen_random_uuid())
+//   modelo_id: uuid (not null)
+//   nome_campo: text (not null)
+//   chave_placeholder: text (not null)
+//   tipo: text (not null)
+//   obrigatorio: boolean (not null, default: false)
+//   fonte_dado: text (not null)
+//   ordem: integer (not null, default: 0)
+//   config_extra: jsonb (nullable)
+// Table: cargo
+//   id: uuid (not null, default: gen_random_uuid())
+//   empresa_id: uuid (not null)
+//   nome: text (not null)
+//   descricao_rich_text: jsonb (not null, default: '{}'::jsonb)
+//   valor_hora: numeric (not null, default: 0)
+//   valor_diaria: numeric (not null, default: 0)
+//   ativo: boolean (not null, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: catalog_items
 //   id: uuid (not null, default: gen_random_uuid())
 //   name: text (not null)
@@ -1612,6 +2312,79 @@ export const Constants = {
 //   stage_type: text (not null)
 //   name: text (not null)
 //   description: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: colaborador
+//   id: uuid (not null, default: gen_random_uuid())
+//   empresa_id: uuid (not null)
+//   tipo_colaborador: text (not null)
+//   nome_completo: text (not null)
+//   cpf: text (not null)
+//   rg: text (nullable)
+//   cnpj: text (nullable)
+//   data_nascimento: date (nullable)
+//   cargo_id: uuid (not null)
+//   cargo_nome_snapshot: text (not null)
+//   cargo_descricao_snapshot: jsonb (not null, default: '{}'::jsonb)
+//   valor_hora_snapshot: numeric (not null, default: 0)
+//   valor_diaria_snapshot: numeric (not null, default: 0)
+//   email: text (not null)
+//   telefone: text (nullable)
+//   endereco: jsonb (not null, default: '{}'::jsonb)
+//   assinatura_url: text (nullable)
+//   dados_dinamicos: jsonb (nullable)
+//   ativo: boolean (not null, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: configuracao_usuario
+//   id: uuid (not null, default: gen_random_uuid())
+//   usuario_id: uuid (not null)
+//   notificacoes_email: boolean (not null, default: true)
+//   notificacoes_push: boolean (not null, default: true)
+//   assinatura_padrao_url: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: documento_anexo
+//   id: uuid (not null, default: gen_random_uuid())
+//   documento_id: uuid (not null)
+//   arquivo_url: text (not null)
+//   tipo_anexo: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: documento_gerado
+//   id: uuid (not null, default: gen_random_uuid())
+//   modelo_id: uuid (not null)
+//   modelo_versao_id: uuid (not null)
+//   empresa_id: uuid (not null)
+//   cargo_id: uuid (nullable)
+//   colaborador_id: uuid (nullable)
+//   titulo: text (not null)
+//   tipo_documento: text (not null)
+//   status: text (not null)
+//   versao_atual: integer (not null, default: 1)
+//   arquivo_pdf_url: text (nullable)
+//   arquivo_renderizado_url: text (nullable)
+//   dados_preenchidos: jsonb (not null, default: '{}'::jsonb)
+//   responsavel_empresa_nome: text (nullable)
+//   responsavel_empresa_assinatura_url: text (nullable)
+//   testemunha_1_nome: text (nullable)
+//   testemunha_1_cpf: text (nullable)
+//   testemunha_1_assinatura_url: text (nullable)
+//   testemunha_2_nome: text (nullable)
+//   testemunha_2_cpf: text (nullable)
+//   testemunha_2_assinatura_url: text (nullable)
+//   assinatura_colaborador_url: text (nullable)
+//   campos_editaveis_pdf: jsonb (not null, default: '{}'::jsonb)
+//   created_by: uuid (not null)
+//   updated_by: uuid (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: documento_versao
+//   id: uuid (not null, default: gen_random_uuid())
+//   documento_id: uuid (not null)
+//   versao: integer (not null)
+//   arquivo_pdf_url: text (not null)
+//   dados_snapshot: jsonb (not null, default: '{}'::jsonb)
+//   alterado_por_usuario_id: uuid (not null)
+//   motivo_alteracao: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 // Table: draft_manuals
 //   id: uuid (not null, default: gen_random_uuid())
@@ -1684,6 +2457,21 @@ export const Constants = {
 //   user_id: uuid (nullable)
 //   invite_status: text (nullable, default: 'Não Convidado'::text)
 //   role_id: uuid (nullable)
+// Table: empresa_contratante
+//   id: uuid (not null, default: gen_random_uuid())
+//   razao_social: text (not null)
+//   nome_fantasia: text (not null)
+//   cnpj: text (not null)
+//   inscricao_estadual: text (nullable)
+//   endereco: jsonb (not null, default: '{}'::jsonb)
+//   logo_url: text (nullable)
+//   header_template: jsonb (not null, default: '{}'::jsonb)
+//   nome_responsavel: text (not null)
+//   cpf_responsavel: text (not null)
+//   assinatura_responsavel_url: text (nullable)
+//   ativa: boolean (not null, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1832,6 +2620,30 @@ export const Constants = {
 //   visita_relato: text (nullable)
 //   visita_status: text (nullable)
 //   visita_vendedor_id: uuid (nullable)
+// Table: modelo
+//   id: uuid (not null, default: gen_random_uuid())
+//   empresa_id: uuid (nullable)
+//   tipo_documento: text (not null)
+//   nome: text (not null)
+//   descricao: text (nullable)
+//   versao_atual: integer (not null, default: 1)
+//   arquivo_original_url: text (not null)
+//   campos_config: jsonb (not null, default: '{}'::jsonb)
+//   placeholders: jsonb (not null, default: '{}'::jsonb)
+//   regras_autopreenchimento: jsonb (not null, default: '{}'::jsonb)
+//   regras_assinatura: jsonb (not null, default: '{}'::jsonb)
+//   campos_editaveis_pdf: jsonb (not null, default: '{}'::jsonb)
+//   ativo: boolean (not null, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: modelo_versao
+//   id: uuid (not null, default: gen_random_uuid())
+//   modelo_id: uuid (not null)
+//   versao: integer (not null)
+//   arquivo_url: text (not null)
+//   campos_config_snapshot: jsonb (not null, default: '{}'::jsonb)
+//   alterado_por_usuario_id: uuid (not null)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: motivos_perda
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -1904,6 +2716,17 @@ export const Constants = {
 //   assinatura_imagem_url: text (nullable)
 //   configuracoes_numeracao: jsonb (nullable, default: '{"ano_vigente": null, "proximo_numero": null}'::jsonb)
 //   configuracoes_whatsapp: jsonb (nullable, default: '{"api_url": "", "enabled": false, "api_token": ""}'::jsonb)
+// Table: usuario_sistema
+//   id: uuid (not null, default: gen_random_uuid())
+//   email: text (not null)
+//   nome_completo: text (not null)
+//   cpf: text (not null)
+//   tipo_usuario: text (not null)
+//   senha_hash: text (not null)
+//   assinatura_url: text (nullable)
+//   ativo: boolean (not null, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: vendedores
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -1931,6 +2754,18 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
+// Table: auditoria_documento
+//   CHECK auditoria_documento_acao_check: CHECK ((acao = ANY (ARRAY['create'::text, 'update'::text, 'delete'::text, 'clone'::text, 'export'::text, 'approve'::text, 'login'::text, 'upload_assinatura'::text])))
+//   PRIMARY KEY auditoria_documento_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY auditoria_documento_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES usuario_sistema(id) ON DELETE RESTRICT
+// Table: campo_modelo
+//   CHECK campo_modelo_fonte_dado_check: CHECK ((fonte_dado = ANY (ARRAY['manual'::text, 'colaborador'::text, 'cargo'::text, 'empresa'::text, 'calculado'::text])))
+//   FOREIGN KEY campo_modelo_modelo_id_fkey: FOREIGN KEY (modelo_id) REFERENCES modelo(id) ON DELETE CASCADE
+//   PRIMARY KEY campo_modelo_pkey: PRIMARY KEY (id)
+//   CHECK campo_modelo_tipo_check: CHECK ((tipo = ANY (ARRAY['text'::text, 'date'::text, 'number'::text, 'select'::text, 'rich_text'::text, 'boolean'::text, 'signature'::text])))
+// Table: cargo
+//   FOREIGN KEY cargo_empresa_id_fkey: FOREIGN KEY (empresa_id) REFERENCES empresa_contratante(id) ON DELETE CASCADE
+//   PRIMARY KEY cargo_pkey: PRIMARY KEY (id)
 // Table: catalog_items
 //   FOREIGN KEY catalog_items_acabamento_id_fkey: FOREIGN KEY (acabamento_id) REFERENCES catalog_stages(id) ON DELETE SET NULL
 //   FOREIGN KEY catalog_items_aplicacao_id_fkey: FOREIGN KEY (aplicacao_id) REFERENCES catalog_stages(id) ON DELETE SET NULL
@@ -1944,6 +2779,32 @@ export const Constants = {
 //   FOREIGN KEY catalog_items_utilizacao_id_fkey: FOREIGN KEY (utilizacao_id) REFERENCES catalog_stages(id) ON DELETE SET NULL
 // Table: catalog_stages
 //   PRIMARY KEY catalog_stages_pkey: PRIMARY KEY (id)
+// Table: colaborador
+//   FOREIGN KEY colaborador_cargo_id_fkey: FOREIGN KEY (cargo_id) REFERENCES cargo(id) ON DELETE RESTRICT
+//   FOREIGN KEY colaborador_empresa_id_fkey: FOREIGN KEY (empresa_id) REFERENCES empresa_contratante(id) ON DELETE CASCADE
+//   PRIMARY KEY colaborador_pkey: PRIMARY KEY (id)
+//   CHECK colaborador_tipo_colaborador_check: CHECK ((tipo_colaborador = ANY (ARRAY['PF'::text, 'MEI'::text])))
+// Table: configuracao_usuario
+//   PRIMARY KEY configuracao_usuario_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY configuracao_usuario_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES usuario_sistema(id) ON DELETE CASCADE
+// Table: documento_anexo
+//   FOREIGN KEY documento_anexo_documento_id_fkey: FOREIGN KEY (documento_id) REFERENCES documento_gerado(id) ON DELETE CASCADE
+//   PRIMARY KEY documento_anexo_pkey: PRIMARY KEY (id)
+// Table: documento_gerado
+//   FOREIGN KEY documento_gerado_cargo_id_fkey: FOREIGN KEY (cargo_id) REFERENCES cargo(id) ON DELETE SET NULL
+//   FOREIGN KEY documento_gerado_colaborador_id_fkey: FOREIGN KEY (colaborador_id) REFERENCES colaborador(id) ON DELETE SET NULL
+//   FOREIGN KEY documento_gerado_created_by_fkey: FOREIGN KEY (created_by) REFERENCES usuario_sistema(id) ON DELETE RESTRICT
+//   FOREIGN KEY documento_gerado_empresa_id_fkey: FOREIGN KEY (empresa_id) REFERENCES empresa_contratante(id) ON DELETE RESTRICT
+//   FOREIGN KEY documento_gerado_modelo_id_fkey: FOREIGN KEY (modelo_id) REFERENCES modelo(id) ON DELETE RESTRICT
+//   FOREIGN KEY documento_gerado_modelo_versao_id_fkey: FOREIGN KEY (modelo_versao_id) REFERENCES modelo_versao(id) ON DELETE RESTRICT
+//   PRIMARY KEY documento_gerado_pkey: PRIMARY KEY (id)
+//   CHECK documento_gerado_status_check: CHECK ((status = ANY (ARRAY['rascunho'::text, 'finalizado'::text, 'arquivado'::text])))
+//   CHECK documento_gerado_tipo_documento_check: CHECK ((tipo_documento = ANY (ARRAY['Contrato'::text, 'OrdemServico'::text, 'NR'::text])))
+//   FOREIGN KEY documento_gerado_updated_by_fkey: FOREIGN KEY (updated_by) REFERENCES usuario_sistema(id) ON DELETE SET NULL
+// Table: documento_versao
+//   FOREIGN KEY documento_versao_alterado_por_usuario_id_fkey: FOREIGN KEY (alterado_por_usuario_id) REFERENCES usuario_sistema(id) ON DELETE RESTRICT
+//   FOREIGN KEY documento_versao_documento_id_fkey: FOREIGN KEY (documento_id) REFERENCES documento_gerado(id) ON DELETE CASCADE
+//   PRIMARY KEY documento_versao_pkey: PRIMARY KEY (id)
 // Table: draft_manuals
 //   PRIMARY KEY draft_manuals_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY draft_manuals_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -1968,6 +2829,8 @@ export const Constants = {
 //   PRIMARY KEY employees_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY employees_role_id_fkey: FOREIGN KEY (role_id) REFERENCES hr_roles(id) ON DELETE SET NULL
 //   FOREIGN KEY employees_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: empresa_contratante
+//   PRIMARY KEY empresa_contratante_pkey: PRIMARY KEY (id)
 // Table: followup_roteiro
 //   FOREIGN KEY followup_roteiro_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY followup_roteiro_pkey: PRIMARY KEY (id)
@@ -2015,6 +2878,14 @@ export const Constants = {
 //   FOREIGN KEY leads_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   FOREIGN KEY leads_vendedor_id_fkey: FOREIGN KEY (vendedor_id) REFERENCES vendedores(id) ON DELETE SET NULL
 //   FOREIGN KEY leads_visita_vendedor_id_fkey: FOREIGN KEY (visita_vendedor_id) REFERENCES vendedores(id) ON DELETE SET NULL
+// Table: modelo
+//   FOREIGN KEY modelo_empresa_id_fkey: FOREIGN KEY (empresa_id) REFERENCES empresa_contratante(id) ON DELETE SET NULL
+//   PRIMARY KEY modelo_pkey: PRIMARY KEY (id)
+//   CHECK modelo_tipo_documento_check: CHECK ((tipo_documento = ANY (ARRAY['Contrato'::text, 'OrdemServico'::text, 'NR'::text])))
+// Table: modelo_versao
+//   FOREIGN KEY modelo_versao_alterado_por_usuario_id_fkey: FOREIGN KEY (alterado_por_usuario_id) REFERENCES usuario_sistema(id) ON DELETE RESTRICT
+//   FOREIGN KEY modelo_versao_modelo_id_fkey: FOREIGN KEY (modelo_id) REFERENCES modelo(id) ON DELETE CASCADE
+//   PRIMARY KEY modelo_versao_pkey: PRIMARY KEY (id)
 // Table: motivos_perda
 //   PRIMARY KEY motivos_perda_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY motivos_perda_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -2037,6 +2908,9 @@ export const Constants = {
 // Table: user_settings
 //   PRIMARY KEY user_settings_pkey: PRIMARY KEY (user_id)
 //   FOREIGN KEY user_settings_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: usuario_sistema
+//   PRIMARY KEY usuario_sistema_pkey: PRIMARY KEY (id)
+//   CHECK usuario_sistema_tipo_usuario_check: CHECK ((tipo_usuario = ANY (ARRAY['Admin'::text, 'Coordenadora'::text, 'NovoUsuario'::text, 'Colaborador'::text, 'Encarregado'::text])))
 // Table: vendedores
 //   PRIMARY KEY vendedores_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY vendedores_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -2049,12 +2923,44 @@ export const Constants = {
 //   PRIMARY KEY work_scales_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: auditoria_documento
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: campo_modelo
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: cargo
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: catalog_items
 //   Policy "authenticated_all_catalog_items" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: catalog_stages
 //   Policy "authenticated_all_catalog_stages" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: colaborador
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: configuracao_usuario
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: documento_anexo
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: documento_gerado
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: documento_versao
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: draft_manuals
@@ -2079,6 +2985,10 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: employees
 //   Policy "employees_policy" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: empresa_contratante
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: followup_roteiro
@@ -2154,6 +3064,14 @@ export const Constants = {
 //   Policy "leads_all_workspace" (ALL, PERMISSIVE) roles={public}
 //     USING: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
 //     WITH CHECK: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
+// Table: modelo
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: modelo_versao
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: motivos_perda
 //   Policy "motivos_perda_all_workspace" (ALL, PERMISSIVE) roles={public}
 //     USING: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
@@ -2192,6 +3110,10 @@ export const Constants = {
 //   Policy "user_settings_all_workspace" (ALL, PERMISSIVE) roles={public}
 //     USING: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
 //     WITH CHECK: ((auth.uid() = user_id) OR (user_id IN ( SELECT get_auth_user_workspaces() AS get_auth_user_workspaces)))
+// Table: usuario_sistema
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: vendedores
 //   Policy "Admin ALL" (ALL, PERMISSIVE) roles={public}
 //     USING: is_admin()

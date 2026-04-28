@@ -34,22 +34,17 @@ export default function Users() {
   const { user } = useAuth()
   const [profiles, setProfiles] = useState<any[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
-
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [newUserData, setNewUserData] = useState({ name: '', email: '', role: 'Usuário' })
+  const [newUserData, setNewUserData] = useState({ name: '', email: '', role: 'Colaborador' })
 
   const fetchProfiles = async () => {
-    setLoading(true)
-    const { data } = await supabase.from('hr_profiles').select('*').order('name')
+    const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
     if (data) setProfiles(data)
-
     if (user) {
       const currentUserProfile = data?.find((p) => p.id === user.id)
-      setIsAdmin(currentUserProfile?.role === 'Admin')
+      setIsAdmin(currentUserProfile?.tipo_usuario === 'Admin')
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -57,64 +52,45 @@ export default function Users() {
   }, [user])
 
   const handleDelete = async (id: string) => {
-    if (!isAdmin) {
-      toast({
-        title: 'Acesso Negado',
-        description: 'Apenas administradores podem excluir usuários.',
-        variant: 'destructive',
-      })
-      return
-    }
-    if (!confirm('Deseja realmente excluir este usuário? O acesso dele será revogado.')) return
-
-    const { error } = await supabase.from('hr_profiles').delete().eq('id', id)
-    if (error) {
-      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' })
-    } else {
-      toast({
-        title: 'Usuário excluído',
-        description: 'O membro foi removido da equipe com sucesso.',
-      })
-      fetchProfiles()
-    }
+    if (!isAdmin) return toast({ title: 'Acesso Negado', variant: 'destructive' })
+    if (!confirm('Deseja realmente excluir este usuário?')) return
+    await supabase.from('usuario_sistema').delete().eq('id', id)
+    toast({ title: 'Usuário excluído' })
+    fetchProfiles()
   }
 
   const handleAddUser = async () => {
     if (!newUserData.name || !newUserData.email) return
-
-    const { data, error } = await supabase.functions.invoke('invite-user', {
-      body: newUserData,
-    })
-
-    if (error || data?.error) {
+    const { data, error } = await supabase.functions.invoke('invite-user', { body: newUserData })
+    if (error || data?.error)
       toast({
-        title: 'Erro ao adicionar usuário',
+        title: 'Erro ao adicionar',
         description: error?.message || data?.error,
         variant: 'destructive',
       })
-    } else {
+    else {
       toast({ title: 'Usuário adicionado com sucesso' })
       setIsAddOpen(false)
-      setNewUserData({ name: '', email: '', role: 'Usuário' })
+      setNewUserData({ name: '', email: '', role: 'Colaborador' })
       fetchProfiles()
     }
   }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Equipes</h1>
-          <p className="text-muted-foreground mt-1">Gerencie os acessos ao sistema</p>
+          <p className="text-muted-foreground mt-1">Convidar usuários para o sistema</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setIsAddOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo Membro
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Novo Membro
           </Button>
         )}
       </div>
 
-      <Card className="shadow-subtle border-border">
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
@@ -127,17 +103,17 @@ export default function Users() {
             </TableHeader>
             <TableBody>
               {profiles.map((p) => (
-                <TableRow key={p.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.nome_completo}</TableCell>
                   <TableCell>{p.email}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {p.role === 'Admin' ? (
+                      {p.tipo_usuario === 'Admin' ? (
                         <Shield className="h-4 w-4 text-primary" />
                       ) : (
                         <UserIcon className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      {p.role}
+                      )}{' '}
+                      {p.tipo_usuario}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -146,7 +122,7 @@ export default function Users() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(p.id)}
-                        className="text-destructive hover:bg-destructive/10"
+                        className="text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -154,13 +130,6 @@ export default function Users() {
                   </TableCell>
                 </TableRow>
               ))}
-              {loading && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Carregando...
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -169,7 +138,7 @@ export default function Users() {
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar Novo Membro</DialogTitle>
+            <DialogTitle>Convidar Membro</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -177,20 +146,18 @@ export default function Users() {
               <Input
                 value={newUserData.name}
                 onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
-                placeholder="Ex: João Silva"
               />
             </div>
             <div className="space-y-2">
               <Label>E-mail</Label>
               <Input
                 value={newUserData.email}
-                onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
-                placeholder="joao@exemplo.com"
                 type="email"
+                onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>Perfil de Acesso</Label>
+              <Label>Perfil</Label>
               <Select
                 value={newUserData.role}
                 onValueChange={(v) => setNewUserData({ ...newUserData, role: v })}
@@ -199,8 +166,9 @@ export default function Users() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Usuário">Usuário</SelectItem>
+                  <SelectItem value="Colaborador">Colaborador</SelectItem>
                   <SelectItem value="Admin">Administrador</SelectItem>
+                  <SelectItem value="Coordenadora">Coordenadora</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -210,7 +178,7 @@ export default function Users() {
               Cancelar
             </Button>
             <Button onClick={handleAddUser} disabled={!newUserData.name || !newUserData.email}>
-              Adicionar
+              Adicionar e Enviar E-mail
             </Button>
           </DialogFooter>
         </DialogContent>

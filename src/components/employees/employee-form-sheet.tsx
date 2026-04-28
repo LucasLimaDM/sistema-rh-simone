@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Trash2, ExternalLink, UploadCloud } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { logAudit } from '@/lib/audit'
 
 interface DocState {
   expiry_date: string
@@ -27,88 +29,30 @@ interface DocState {
   file?: File
 }
 
-function DocInput({
-  label,
-  docState,
-  onChange,
-}: {
-  label: string
-  docState: DocState
-  onChange: (v: DocState) => void
-}) {
-  return (
-    <div className="flex flex-col gap-2 p-3 border rounded-md bg-muted/20">
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-xs">{label}</span>
-        <Input
-          type="date"
-          className="w-[120px] h-7 text-xs px-2"
-          value={docState.expiry_date || ''}
-          onChange={(e) => onChange({ ...docState, expiry_date: e.target.value })}
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <Label className="cursor-pointer text-xs flex-1 flex items-center justify-center gap-2 border border-dashed rounded-md h-7 hover:bg-muted transition-colors px-2">
-          <UploadCloud className="h-3 w-3" />
-          <span className="truncate max-w-[80px]">
-            {docState.file ? 'Selecionado' : docState.file_url ? 'Anexado' : 'Anexar'}
-          </span>
-          <input
-            type="file"
-            className="hidden"
-            accept=".pdf,image/*"
-            onChange={(e) =>
-              e.target.files?.[0] && onChange({ ...docState, file: e.target.files[0] })
-            }
-          />
-        </Label>
-        {(docState.file_url || docState.file) && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-destructive hover:bg-destructive/10"
-            onClick={() => onChange({ ...docState, file: undefined, file_url: '' })}
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        )}
-        {docState.file_url && !docState.file && (
-          <a
-            href={docState.file_url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center h-7 w-7 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-          >
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export function EmployeeFormSheet({
   company,
+  empresaId,
   onSave,
   employeeToEdit,
   open,
   setOpen,
 }: {
   company: string
+  empresaId: string
   onSave: () => void
   employeeToEdit?: any
   open: boolean
   setOpen: (val: boolean) => void
 }) {
+  const { user } = useAuth()
   const [data, setData] = useState({
-    name: '',
+    nome_completo: '',
     email: '',
-    phone: '',
+    telefone: '',
     cpf: '',
     rg: '',
     cnpj: '',
-    company_name: '',
-    birth_date: '',
+    data_nascimento: '',
     cep: '',
     logradouro: '',
     numero: '',
@@ -116,48 +60,45 @@ export function EmployeeFormSheet({
     bairro: '',
     cidade: '',
     uf: '',
-    role: '',
-    contract_type: 'CLT',
+    cargo_id: '',
+    tipo_colaborador: 'PF',
     admission_date: '',
     observations: '',
   })
-
   const [docs, setDocs] = useState<Record<string, DocState>>({})
   const [loading, setLoading] = useState(false)
   const [roles, setRoles] = useState<any[]>([])
 
   useEffect(() => {
-    if (open) {
+    if (open && empresaId) {
       supabase
-        .from('hr_roles')
+        .from('cargo')
         .select('*')
-        .eq('company', company)
+        .eq('empresa_id', empresaId)
         .then(({ data }) => {
           if (data) setRoles(data)
         })
 
       if (employeeToEdit) {
         setData({
-          name: employeeToEdit.name || '',
+          nome_completo: employeeToEdit.nome_completo || '',
           email: employeeToEdit.email || '',
-          phone: employeeToEdit.phone || '',
+          telefone: employeeToEdit.telefone || '',
           cpf: employeeToEdit.cpf || '',
           rg: employeeToEdit.rg || '',
           cnpj: employeeToEdit.cnpj || '',
-          company_name: employeeToEdit.company_name || '',
-          birth_date: employeeToEdit.birth_date || '',
-          cep: employeeToEdit.cep || '',
-          logradouro: employeeToEdit.logradouro || '',
-          numero: employeeToEdit.numero || '',
-          complemento: employeeToEdit.complemento || '',
-          bairro: employeeToEdit.bairro || '',
-          cidade: employeeToEdit.cidade || '',
-          uf: employeeToEdit.uf || '',
-          role: employeeToEdit.role || '',
-          role_id: employeeToEdit.role_id || '',
-          contract_type: employeeToEdit.contract_type || 'CLT',
-          admission_date: employeeToEdit.admission_date || '',
-          observations: employeeToEdit.observations || '',
+          data_nascimento: employeeToEdit.data_nascimento || '',
+          cep: employeeToEdit.endereco?.cep || '',
+          logradouro: employeeToEdit.endereco?.logradouro || '',
+          numero: employeeToEdit.endereco?.numero || '',
+          complemento: employeeToEdit.endereco?.complemento || '',
+          bairro: employeeToEdit.endereco?.bairro || '',
+          cidade: employeeToEdit.endereco?.cidade || '',
+          uf: employeeToEdit.endereco?.uf || '',
+          cargo_id: employeeToEdit.cargo_id || '',
+          tipo_colaborador: employeeToEdit.tipo_colaborador || 'PF',
+          admission_date: employeeToEdit.dados_dinamicos?.admission_date || '',
+          observations: employeeToEdit.dados_dinamicos?.observations || '',
         })
         const d: Record<string, DocState> = {}
         employeeToEdit.employee_documents?.forEach((doc: any) => {
@@ -169,14 +110,13 @@ export function EmployeeFormSheet({
         setDocs(d)
       } else {
         setData({
-          name: '',
+          nome_completo: '',
           email: '',
-          phone: '',
+          telefone: '',
           cpf: '',
           rg: '',
           cnpj: '',
-          company_name: '',
-          birth_date: '',
+          data_nascimento: '',
           cep: '',
           logradouro: '',
           numero: '',
@@ -184,16 +124,15 @@ export function EmployeeFormSheet({
           bairro: '',
           cidade: '',
           uf: '',
-          role: '',
-          role_id: '',
-          contract_type: 'CLT',
+          cargo_id: '',
+          tipo_colaborador: 'PF',
           admission_date: '',
           observations: '',
         })
         setDocs({})
       }
     }
-  }, [open, employeeToEdit])
+  }, [open, employeeToEdit, empresaId])
 
   const handleCep = async (val: string) => {
     setData((prev) => ({ ...prev, cep: val }))
@@ -202,7 +141,7 @@ export function EmployeeFormSheet({
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
         const viacep = await res.json()
-        if (!viacep.erro) {
+        if (!viacep.erro)
           setData((prev) => ({
             ...prev,
             logradouro: viacep.logradouro || prev.logradouro,
@@ -210,9 +149,8 @@ export function EmployeeFormSheet({
             cidade: viacep.localidade || prev.cidade,
             uf: viacep.uf || prev.uf,
           }))
-        }
-      } catch (e) {
-        console.error('Erro ao buscar CEP:', e)
+      } catch {
+        /* intentionally ignored */
       }
     }
   }
@@ -227,238 +165,220 @@ export function EmployeeFormSheet({
         const { data: upData } = await supabase.storage
           .from('employee_documents')
           .upload(fileName, doc.file)
-        if (upData) {
-          const { data: pubData } = supabase.storage
+        if (upData)
+          uploadedUrls[type] = supabase.storage
             .from('employee_documents')
-            .getPublicUrl(fileName)
-          uploadedUrls[type] = pubData.publicUrl
-        }
-      } else if (doc.file_url) {
-        uploadedUrls[type] = doc.file_url
-      }
+            .getPublicUrl(fileName).data.publicUrl
+      } else if (doc.file_url) uploadedUrls[type] = doc.file_url
     }
 
-    const selectedRole = roles.find((r) => r.id === data.role_id)
+    const selectedRole = roles.find((r) => r.id === data.cargo_id)
+    const newId = employeeToEdit?.id || crypto.randomUUID()
 
     const payload = {
-      ...data,
-      birth_date: data.birth_date || null,
-      admission_date: data.admission_date || null,
-      role: selectedRole ? selectedRole.name : data.role || 'Colaborador',
-      role_id: data.role_id || null,
+      empresa_id: empresaId,
+      nome_completo: data.nome_completo,
+      email: data.email,
+      telefone: data.telefone,
+      cpf: data.cpf,
+      rg: data.rg,
+      cnpj: data.cnpj,
+      data_nascimento: data.data_nascimento || null,
+      tipo_colaborador: data.tipo_colaborador,
+      cargo_id: data.cargo_id,
+      cargo_nome_snapshot: selectedRole?.nome || '',
+      cargo_descricao_snapshot: selectedRole?.descricao_rich_text || {},
+      valor_hora_snapshot: selectedRole?.valor_hora || 0,
+      valor_diaria_snapshot: selectedRole?.valor_diaria || 0,
+      endereco: {
+        cep: data.cep,
+        logradouro: data.logradouro,
+        numero: data.numero,
+        complemento: data.complemento,
+        bairro: data.bairro,
+        cidade: data.cidade,
+        uf: data.uf,
+      },
+      dados_dinamicos: { admission_date: data.admission_date, observations: data.observations },
+      ativo: true,
     }
 
-    const otherCompany = company === 'Primer Pisos' ? 'Piso Plano' : 'Primer Pisos'
-    let createdIds: string[] = []
-
-    if (employeeToEdit?.id) {
-      await supabase.from('employees').update(payload).eq('id', employeeToEdit.id)
-      createdIds.push(employeeToEdit.id)
-    } else {
-      const { data: insData } = await supabase
+    if (!employeeToEdit?.id) {
+      await supabase
         .from('employees')
-        .insert([
-          { ...payload, company },
-          { ...payload, company: otherCompany },
-        ])
-        .select()
-      if (insData) createdIds = insData.map((e) => e.id)
-    }
-
-    if (createdIds.length > 0) {
-      if (employeeToEdit?.id) {
-        await supabase.from('employee_documents').delete().eq('employee_id', employeeToEdit.id)
-      }
-
-      const docInserts: any[] = []
-      createdIds.forEach((empId) => {
-        Object.entries(docs).forEach(([type, doc]) => {
-          if (doc.expiry_date || uploadedUrls[type]) {
-            docInserts.push({
-              employee_id: empId,
-              document_type: type,
-              expiry_date: doc.expiry_date || null,
-              file_url: uploadedUrls[type] || null,
-            })
-          }
+        .insert({
+          id: newId,
+          name: data.nome_completo,
+          company: company,
+          contract_type: data.tipo_colaborador,
+          role: selectedRole?.nome || 'Colaborador',
+          status: 'ativo',
         })
-      })
-      if (docInserts.length > 0) await supabase.from('employee_documents').insert(docInserts)
-      onSave()
-      setOpen(false)
+      await supabase.from('colaborador').insert({ id: newId, ...payload })
+      if (user) await logAudit('colaborador', newId, 'create', user.id, null, payload)
+    } else {
+      await supabase
+        .from('employees')
+        .update({
+          name: data.nome_completo,
+          contract_type: data.tipo_colaborador,
+          role: selectedRole?.nome || 'Colaborador',
+        })
+        .eq('id', newId)
+      await supabase.from('colaborador').update(payload).eq('id', newId)
+      if (user) await logAudit('colaborador', newId, 'update', user.id, null, payload)
     }
-    setLoading(false)
-  }
 
-  const maskPhone = (val: string) => {
-    let v = val.replace(/\D/g, '')
-    if (v.length > 11) v = v.slice(0, 11)
-    if (v.length > 10) return v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
-    if (v.length > 5) return v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3')
-    if (v.length > 2) return v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2')
-    if (v.length > 0) return v.replace(/^(\d{0,2})$/, '($1')
-    return v
-  }
-
-  const maskCNPJ = (val: string) => {
-    let v = val.replace(/\D/g, '')
-    if (v.length > 14) v = v.slice(0, 14)
-    return v.replace(/^(\d{2})(\d{3})?(\d{3})?(\d{4})?(\d{2})?$/, (m, p1, p2, p3, p4, p5) => {
-      let r = p1
-      if (p2) r += `.${p2}`
-      if (p3) r += `.${p3}`
-      if (p4) r += `/${p4}`
-      if (p5) r += `-${p5}`
-      return r
+    await supabase.from('employee_documents').delete().eq('employee_id', newId)
+    const docInserts: any[] = []
+    Object.entries(docs).forEach(([type, doc]) => {
+      if (doc.expiry_date || uploadedUrls[type])
+        docInserts.push({
+          employee_id: newId,
+          document_type: type,
+          expiry_date: doc.expiry_date || null,
+          file_url: uploadedUrls[type] || null,
+        })
     })
+    if (docInserts.length > 0) await supabase.from('employee_documents').insert(docInserts)
+
+    setLoading(false)
+    onSave()
+    setOpen(false)
   }
 
-  const maskCEP = (val: string) => {
-    let v = val.replace(/\D/g, '')
-    if (v.length > 8) v = v.slice(0, 8)
-    if (v.length > 5) return v.replace(/^(\d{5})(\d{1,3})$/, '$1-$2')
-    return v
-  }
-
-  const renderInputRow = (label: string, field: keyof typeof data, type = 'text', span = 1) => (
-    <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
-      <Label className="text-xs">{label}</Label>
-      <Input
-        type={type}
-        value={data[field]}
-        onChange={(e) => {
-          let val = e.target.value
-          if (field === 'phone') val = maskPhone(val)
-          if (field === 'cnpj') val = maskCNPJ(val)
-          if (field === 'cep') val = maskCEP(val)
-
-          if (field === 'cep') {
-            handleCep(val)
-          } else {
-            setData({ ...data, [field]: val })
-          }
-        }}
-        className="h-8 text-sm"
-      />
-    </div>
-  )
+  const maskPhone = (val: string) =>
+    val.replace(/\D/g, '').replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
+  const maskCPF = (val: string) =>
+    val
+      .replace(/\D/g, '')
+      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+      .slice(0, 14)
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent className="sm:max-w-xl w-full overflow-y-auto p-0 flex flex-col">
         <SheetHeader className="p-6 pb-2 border-b sticky top-0 bg-background z-10">
-          <SheetTitle>{employeeToEdit ? 'Editar Colaborador' : 'Cadastrar Colaborador'}</SheetTitle>
+          <SheetTitle>{employeeToEdit ? 'Editar Colaborador' : 'Novo Colaborador'}</SheetTitle>
           <SheetDescription>
-            Preencha os dados e anexe documentos.{' '}
-            {employeeToEdit ? '' : 'Será espelhado para a outra empresa.'}
+            Preencha os dados e vincule a um cargo para preenchimento de documentos.
           </SheetDescription>
         </SheetHeader>
-
         <div className="p-6 space-y-8 flex-1">
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-primary uppercase">Dados Pessoais</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {renderInputRow('Nome Completo', 'name', 'text', 2)}
-              {renderInputRow('E-mail', 'email', 'email')}
-              {renderInputRow('Celular', 'phone')}
-              {renderInputRow('CPF', 'cpf')}
-              {renderInputRow('RG', 'rg')}
-              {renderInputRow('Data de Nasc.', 'birth_date', 'date')}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              {renderInputRow('Nome da Empresa / Razão Social', 'company_name', 'text', 1)}
-              {renderInputRow('CNPJ', 'cnpj')}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-primary uppercase">Endereço</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {renderInputRow('CEP', 'cep')}
-              {renderInputRow('Logradouro', 'logradouro')}
-              {renderInputRow('Número', 'numero')}
-              {renderInputRow('Complemento', 'complemento')}
-              {renderInputRow('Bairro', 'bairro')}
-              <div className="grid grid-cols-2 gap-2">
-                {renderInputRow('Cidade', 'cidade')}
-                {renderInputRow('UF', 'uf')}
+            <h4 className="text-sm font-semibold text-primary">Dados Pessoais</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Nome Completo</Label>
+                <Input
+                  value={data.nome_completo}
+                  onChange={(e) => setData({ ...data, nome_completo: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>CPF</Label>
+                <Input
+                  value={data.cpf}
+                  onChange={(e) => setData({ ...data, cpf: maskCPF(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>RG</Label>
+                <Input value={data.rg} onChange={(e) => setData({ ...data, rg: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Telefone</Label>
+                <Input
+                  value={data.telefone}
+                  onChange={(e) => setData({ ...data, telefone: maskPhone(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={data.email}
+                  onChange={(e) => setData({ ...data, email: e.target.value })}
+                />
               </div>
             </div>
           </div>
-
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-primary uppercase">Vínculo</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <h4 className="text-sm font-semibold text-primary">Vínculo e Cargo</h4>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs">Cargo/Função</Label>
+                <Label>Cargo / Função</Label>
                 <Select
-                  value={data.role_id || ''}
-                  onValueChange={(v) => setData({ ...data, role_id: v })}
+                  value={data.cargo_id}
+                  onValueChange={(v) => setData({ ...data, cargo_id: v })}
                 >
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
-                        {r.name}{' '}
-                        {r.hourly_rate
-                          ? `(R$ ${Number(r.hourly_rate).toFixed(2).replace('.', ',')}/h)`
-                          : ''}
+                        {r.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Tipo de Vínculo</Label>
+                <Label>Tipo</Label>
                 <Select
-                  value={data.contract_type}
-                  onValueChange={(v) => setData({ ...data, contract_type: v })}
+                  value={data.tipo_colaborador}
+                  onValueChange={(v) => setData({ ...data, tipo_colaborador: v })}
                 >
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CLT">CLT</SelectItem>
+                    <SelectItem value="PF">PF</SelectItem>
                     <SelectItem value="MEI">MEI</SelectItem>
-                    <SelectItem value="LTDA">LTDA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {renderInputRow('Data de Admissão', 'admission_date', 'date')}
-            </div>
-            <div className="space-y-1.5 mt-2">
-              <Label className="text-xs">Observações</Label>
-              <Textarea
-                rows={2}
-                value={data.observations}
-                onChange={(e) => setData({ ...data, observations: e.target.value })}
-                className="text-sm"
-              />
             </div>
           </div>
-
           <div className="space-y-3 pb-8">
-            <h4 className="text-sm font-semibold text-primary uppercase">Documentos e Validades</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {['ASO', 'NR-35', 'NR-06', 'NR-12', 'NR-18', 'OS'].map((type) => (
-                <DocInput
-                  key={type}
-                  label={type}
-                  docState={docs[type] || { expiry_date: '' }}
-                  onChange={(v) => setDocs({ ...docs, [type]: v })}
-                />
+            <h4 className="text-sm font-semibold text-primary">Documentos NR e ASO</h4>
+            <div className="grid grid-cols-2 gap-3">
+              {['ASO', 'NR-35', 'NR-10', 'OS'].map((type) => (
+                <div key={type} className="p-3 border rounded bg-muted/20 text-xs">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold">{type}</span>
+                    <Input
+                      type="date"
+                      className="h-6 w-28 text-xs"
+                      value={docs[type]?.expiry_date || ''}
+                      onChange={(e) =>
+                        setDocs({ ...docs, [type]: { ...docs[type], expiry_date: e.target.value } })
+                      }
+                    />
+                  </div>
+                  <Label className="cursor-pointer flex items-center justify-center gap-1 border border-dashed rounded h-6 hover:bg-muted">
+                    <UploadCloud className="h-3 w-3" /> {docs[type]?.file ? 'Pronto' : 'Anexar PDF'}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,image/*"
+                      onChange={(e) =>
+                        e.target.files?.[0] &&
+                        setDocs({ ...docs, [type]: { ...docs[type], file: e.target.files[0] } })
+                      }
+                    />
+                  </Label>
+                </div>
               ))}
             </div>
           </div>
         </div>
-
         <SheetFooter className="p-6 border-t sticky bottom-0 bg-background z-10">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button disabled={loading || !data.name} onClick={handleSave}>
+          <Button disabled={loading || !data.nome_completo || !data.cargo_id} onClick={handleSave}>
             {loading ? 'Salvando...' : 'Salvar'}
           </Button>
         </SheetFooter>

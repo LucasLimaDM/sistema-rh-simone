@@ -28,22 +28,25 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Shield, User as UserIcon, Upload } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { logAudit } from '@/lib/audit'
 
 export default function Settings() {
+  const { user } = useAuth()
   const [profiles, setProfiles] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({
     id: '',
-    name: '',
+    nome_completo: '',
     email: '',
-    role: 'Usuário',
+    tipo_usuario: 'Colaborador',
     cpf: '',
-    signature_url: '',
+    assinatura_url: '',
   })
   const { toast } = useToast()
 
   const fetchProfiles = async () => {
-    const { data } = await supabase.from('hr_profiles').select('*').order('name')
+    const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
     if (data) setProfiles(data)
   }
 
@@ -52,19 +55,15 @@ export default function Settings() {
   }, [])
 
   const handleSave = async () => {
-    const { error } = await supabase
-      .from('hr_profiles')
-      .update({
-        name: formData.name,
-        role: formData.role,
-        cpf: formData.cpf,
-        signature_url: formData.signature_url,
-      })
-      .eq('id', formData.id)
-
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
-    } else {
+    const payload = {
+      nome_completo: formData.nome_completo,
+      tipo_usuario: formData.tipo_usuario,
+      cpf: formData.cpf,
+      assinatura_url: formData.assinatura_url,
+    }
+    const { error } = await supabase.from('usuario_sistema').update(payload).eq('id', formData.id)
+    if (!error) {
+      if (user) logAudit('usuario_sistema', formData.id, 'update', user.id, null, payload)
       toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso.' })
       setIsOpen(false)
       fetchProfiles()
@@ -75,9 +74,8 @@ export default function Settings() {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (event) => {
-      setFormData({ ...formData, signature_url: event.target?.result as string })
-    }
+    reader.onload = (event) =>
+      setFormData({ ...formData, assinatura_url: event.target?.result as string })
     reader.readAsDataURL(file)
   }
 
@@ -85,14 +83,14 @@ export default function Settings() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">
-          Configurações de Usuários
+          Configuração de Usuários do Sistema
         </h1>
         <p className="text-muted-foreground mt-1">
-          Gerencie CPFs, níveis de acesso e assinaturas digitais por imagem.
+          Gerencie níveis de acesso, senhas e assinaturas de auditoria.
         </p>
       </div>
 
-      <Card className="shadow-sm border-border">
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
@@ -107,25 +105,29 @@ export default function Settings() {
             </TableHeader>
             <TableBody>
               {profiles.map((p) => (
-                <TableRow key={p.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.nome_completo}</TableCell>
                   <TableCell>{p.email}</TableCell>
-                  <TableCell>{p.cpf || '-'}</TableCell>
+                  <TableCell>{p.cpf}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {p.role === 'Admin' ? (
+                      {p.tipo_usuario === 'Admin' ? (
                         <Shield className="h-4 w-4 text-primary" />
                       ) : (
-                        <UserIcon className="h-4 w-4 text-muted-foreground" />
+                        <UserIcon className="h-4 w-4" />
                       )}
-                      {p.role}
+                      {p.tipo_usuario}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {p.signature_url ? (
-                      <img src={p.signature_url} alt="Assinatura" className="h-8 object-contain" />
+                    {p.assinatura_url ? (
+                      <img
+                        src={p.assinatura_url}
+                        className="h-8 border p-1 bg-white object-contain"
+                        alt="Assinatura"
+                      />
                     ) : (
-                      <span className="text-muted-foreground text-sm">Pendente</span>
+                      <span className="text-xs text-muted-foreground">Pendente</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -133,15 +135,11 @@ export default function Settings() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setFormData({
-                          ...p,
-                          cpf: p.cpf || '',
-                          signature_url: p.signature_url || '',
-                        })
+                        setFormData({ ...p, cpf: p.cpf || '' })
                         setIsOpen(true)
                       }}
                     >
-                      Editar
+                      Configurar
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -154,18 +152,18 @@ export default function Settings() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Configuração de Usuário</DialogTitle>
+            <DialogTitle>Configuração Individual de Segurança</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.nome_completo}
+                onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label>CPF</Label>
+              <Label>CPF (Documentos Oficiais)</Label>
               <Input
                 value={formData.cpf}
                 onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
@@ -175,34 +173,34 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Perfil de Acesso</Label>
               <Select
-                value={formData.role}
-                onValueChange={(v) => setFormData({ ...formData, role: v })}
+                value={formData.tipo_usuario}
+                onValueChange={(v) => setFormData({ ...formData, tipo_usuario: v })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Usuário">Usuário</SelectItem>
                   <SelectItem value="Colaborador">Colaborador</SelectItem>
-                  <SelectItem value="Admin">Administrador</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Coordenadora">Coordenadora</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Assinatura (Imagem PNG/JPG)</Label>
+              <Label>Assinatura (Imagem PNG p/ PDFs)</Label>
               <div className="flex items-center gap-4">
-                {formData.signature_url && (
+                {formData.assinatura_url && (
                   <img
-                    src={formData.signature_url}
-                    className="h-10 border p-1 rounded bg-white"
-                    alt="Assinatura atual"
+                    src={formData.assinatura_url}
+                    className="h-10 border p-1 bg-white"
+                    alt="Assinatura"
                   />
                 )}
-                <Button variant="outline" className="relative cursor-pointer">
-                  <Upload className="h-4 w-4 mr-2" /> Fazer Upload
+                <Button variant="outline" className="relative">
+                  <Upload className="h-4 w-4 mr-2" /> Upload{' '}
                   <input
                     type="file"
-                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    className="absolute inset-0 opacity-0"
                     accept="image/*"
                     onChange={handleUpload}
                   />

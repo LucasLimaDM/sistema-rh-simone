@@ -4,6 +4,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
 import Index from './pages/Index'
+import Companies from './pages/Companies'
 import Employees from './pages/Employees'
 import TimeTracking from './pages/TimeTracking'
 import Roles from './pages/Roles'
@@ -36,6 +37,7 @@ const AppRoutes = () => (
       }
     >
       <Route path="/" element={<Index />} />
+      <Route path="/empresas" element={<Companies />} />
       <Route path="/colaboradores" element={<Employees />} />
       <Route path="/cargos" element={<Roles />} />
       <Route path="/ponto" element={<TimeTracking />} />

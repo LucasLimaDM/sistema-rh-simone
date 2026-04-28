@@ -66,12 +66,15 @@ Deno.serve(async (req: Request) => {
               .from('employees')
               .update({ invite_status: 'Pendente', user_id: foundUser.id })
               .eq('id', employee_id)
-            await supabase.from('hr_profiles').upsert({
+            await supabase.from('colaborador').update({ ativo: true }).eq('id', employee_id)
+            await supabase.from('usuario_sistema').upsert({
               id: foundUser.id,
               email: email,
-              name: name,
-              role: role || 'Colaborador',
-              company: company || 'Primer Pisos',
+              nome_completo: name,
+              cpf: '000.000.000-00',
+              tipo_usuario: role || 'Colaborador',
+              senha_hash: 'convite',
+              ativo: true,
             })
           }
         }
@@ -86,15 +89,18 @@ Deno.serve(async (req: Request) => {
 
     const userId = linkData.user.id
 
-    await supabase.from('hr_profiles').upsert({
+    await supabase.from('usuario_sistema').upsert({
       id: userId,
       email: email,
-      name: name,
-      role: role || 'Colaborador',
-      company: company || 'Primer Pisos',
+      nome_completo: name,
+      cpf: '000.000.000-00',
+      tipo_usuario: role || 'Colaborador',
+      senha_hash: 'convite',
+      ativo: true,
     })
 
     if (employee_id) {
+      await supabase.from('colaborador').update({ ativo: true }).eq('id', employee_id)
       await supabase
         .from('employees')
         .update({ invite_status: 'Pendente', user_id: userId })

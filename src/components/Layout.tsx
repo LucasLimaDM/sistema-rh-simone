@@ -47,7 +47,9 @@ import {
 import { Company, AppContextType } from '@/lib/types'
 const navItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+  { title: 'Empresas', url: '/empresas', icon: Building2 },
   { title: 'Colaboradores', url: '/colaboradores', icon: Users },
+  { title: 'Cargos', url: '/cargos', icon: Briefcase },
   { title: 'Controle de Ponto', url: '/ponto', icon: Clock },
   { title: 'Gestão de Escalas', url: '/escalas', icon: CalendarDays },
   { title: 'Modelos', url: '/modelos', icon: FileText },
@@ -66,8 +68,8 @@ export default function Layout() {
   useEffect(() => {
     if (user) {
       supabase
-        .from('hr_profiles')
-        .select('*')
+        .from('usuario_sistema')
+        .select('*, name:nome_completo, role:tipo_usuario')
         .eq('id', user.id)
         .maybeSingle()
         .then(({ data }) => {

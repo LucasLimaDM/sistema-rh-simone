@@ -32,6 +32,7 @@ import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
 import { FileText, Plus, Download } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { logAudit } from '@/lib/audit'
 
 export default function Documents() {
   const { company } = useOutletContext<AppContextType>()
@@ -39,134 +40,192 @@ export default function Documents() {
   const [documents, setDocuments] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
-  const [profile, setProfile] = useState<any>(null)
+  const [empresa, setEmpresa] = useState<any>(null)
 
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({
     template_id: '',
-    employee_id: '',
+    colaborador_id: '',
     title: '',
     content: '',
+    t1_nome: '',
+    t1_cpf: '',
+    t2_nome: '',
+    t2_cpf: '',
   })
   const { toast } = useToast()
 
   const fetchData = async () => {
-    const [docsRes, tempsRes, empsRes, profRes] = await Promise.all([
-      supabase
-        .from('hr_generated_documents')
-        .select('*, employees(name)')
-        .eq('company', company)
-        .order('created_at', { ascending: false }),
-      supabase.from('hr_document_templates').select('*').eq('company', company),
-      supabase.from('employees').select('*').eq('company', company).eq('status', 'ativo'),
-      supabase.from('hr_profiles').select('*').eq('id', user?.id).maybeSingle(),
-    ])
-    if (docsRes.data) setDocuments(docsRes.data)
-    if (tempsRes.data) setTemplates(tempsRes.data)
-    if (empsRes.data) setEmployees(empsRes.data)
-    if (profRes.data) setProfile(profRes.data)
+    const { data: emp } = await supabase
+      .from('empresa_contratante')
+      .select('*')
+      .eq('nome_fantasia', company)
+      .single()
+    if (emp) {
+      setEmpresa(emp)
+      const [docs, temps, cols] = await Promise.all([
+        supabase
+          .from('documento_gerado')
+          .select('*, colaborador(nome_completo)')
+          .eq('empresa_id', emp.id)
+          .order('created_at', { ascending: false }),
+        supabase.from('modelo').select('*').eq('empresa_id', emp.id),
+        supabase.from('colaborador').select('*').eq('empresa_id', emp.id),
+      ])
+      if (docs.data) setDocuments(docs.data)
+      if (temps.data) setTemplates(temps.data)
+      if (cols.data) setEmployees(cols.data)
+    }
   }
 
   useEffect(() => {
     fetchData()
-  }, [company, user])
+  }, [company])
 
-  const handleTemplateSelect = (tempId: string) => {
-    const temp = templates.find((t) => t.id === tempId)
-    const emp = employees.find((e) => e.id === formData.employee_id)
-    let content = temp?.content || ''
+  const processContent = (tempId: string, colId: string) => {
+    const template = templates.find((t) => t.id === tempId)
+    const col = employees.find((e) => e.id === colId)
+    let content = template?.campos_config?.content || ''
 
-    if (emp) {
+    if (col && empresa) {
       content = content
-        .replace(/{{NOME_COLABORADOR}}/g, emp.name)
-        .replace(/{{CARGO}}/g, emp.role)
-        .replace(/{{CPF}}/g, emp.cpf || 'Não informado')
-        .replace(/{{NOME_EMPRESA}}/g, company)
+        .replace(/{{NOME_EMPRESA}}/g, empresa.razao_social)
+        .replace(/{{CNPJ_EMPRESA}}/g, empresa.cnpj)
+        .replace(/{{RESPONSAVEL_EMPRESA}}/g, empresa.nome_responsavel)
+        .replace(/{{NOME_COLABORADOR}}/g, col.nome_completo)
+        .replace(/{{CPF_COLABORADOR}}/g, col.cpf)
+        .replace(/{{RG_COLABORADOR}}/g, col.rg || '')
+        .replace(/{{CARGO_NOME}}/g, col.cargo_nome_snapshot || '')
+        .replace(/{{CARGO_DESCRICAO}}/g, col.cargo_descricao_snapshot?.texto || '')
+        .replace(/{{VALOR_HORA}}/g, col.valor_hora_snapshot || '')
+        .replace(/{{VALOR_DIARIA}}/g, col.valor_diaria_snapshot || '')
     }
-
-    setFormData({ ...formData, template_id: tempId, title: temp?.title || '', content })
-  }
-
-  const handleEmployeeSelect = (empId: string) => {
-    const temp = templates.find((t) => t.id === formData.template_id)
-    const emp = employees.find((e) => e.id === empId)
-    let content = temp?.content || formData.content
-
-    if (emp) {
-      content = content
-        .replace(/{{NOME_COLABORADOR}}/g, emp.name)
-        .replace(/{{CARGO}}/g, emp.role)
-        .replace(/{{CPF}}/g, emp.cpf || 'Não informado')
-        .replace(/{{NOME_EMPRESA}}/g, company)
-    }
-
-    setFormData({ ...formData, employee_id: empId, content })
+    setFormData((prev) => ({
+      ...prev,
+      template_id: tempId,
+      colaborador_id: colId,
+      title: template?.nome || '',
+      content,
+    }))
   }
 
   const handleGenerate = async () => {
-    const { error } = await supabase.from('hr_generated_documents').insert({
-      template_id: formData.template_id,
-      employee_id: formData.employee_id,
-      title: formData.title,
-      content: formData.content,
-      company: company,
-      status: 'Gerado',
-    })
+    if (!user) return
+    const template = templates.find((t) => t.id === formData.template_id)
+    const col = employees.find((e) => e.id === formData.colaborador_id)
 
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
-    } else {
-      toast({ title: 'Sucesso', description: 'Documento gerado com sucesso no repositório.' })
+    const payload = {
+      modelo_id: template.id,
+      modelo_versao_id: template.id, // Simplification
+      empresa_id: empresa.id,
+      colaborador_id: col?.id,
+      cargo_id: col?.cargo_id,
+      titulo: formData.title,
+      tipo_documento: template.tipo_documento,
+      status: 'finalizado',
+      versao_atual: 1,
+      dados_preenchidos: { content: formData.content },
+      responsavel_empresa_nome: empresa.nome_responsavel,
+      responsavel_empresa_assinatura_url: empresa.assinatura_responsavel_url,
+      testemunha_1_nome: formData.t1_nome,
+      testemunha_1_cpf: formData.t1_cpf,
+      testemunha_2_nome: formData.t2_nome,
+      testemunha_2_cpf: formData.t2_cpf,
+      assinatura_colaborador_url: col?.assinatura_url,
+      campos_editaveis_pdf: {},
+      created_by: user.id,
+    }
+
+    const { data, error } = await supabase
+      .from('documento_gerado')
+      .insert(payload)
+      .select()
+      .single()
+    if (!error && data) {
+      await supabase
+        .from('documento_versao')
+        .insert({
+          documento_id: data.id,
+          versao: 1,
+          arquivo_pdf_url: '',
+          dados_snapshot: payload,
+          alterado_por_usuario_id: user.id,
+        })
+      logAudit('documento_gerado', data.id, 'create', user.id)
+      toast({ title: 'Documento gerado com sucesso.' })
       setIsOpen(false)
       fetchData()
     }
   }
 
   const handleExportPDF = async (doc: any) => {
-    toast({ title: 'Gerando PDF...', description: 'Aguarde um momento.' })
-    const template = templates.find((t) => t.id === doc.template_id)
+    toast({ title: 'Gerando PDF...', description: 'Aguarde o processamento.' })
+    const { data: emp } = await supabase
+      .from('empresa_contratante')
+      .select('*')
+      .eq('id', doc.empresa_id)
+      .single()
+    const { data: col } = await supabase
+      .from('colaborador')
+      .select('*')
+      .eq('id', doc.colaborador_id)
+      .single()
+
+    const payload = {
+      title: doc.titulo,
+      tipoDocumento: doc.tipo_documento,
+      conteudo: doc.dados_preenchidos?.content || '',
+      empresa: emp,
+      colaborador: col,
+      testemunhas: [
+        { nome: doc.testemunha_1_nome, cpf: doc.testemunha_1_cpf },
+        { nome: doc.testemunha_2_nome, cpf: doc.testemunha_2_cpf },
+      ],
+      assinaturas: {
+        responsavel: doc.responsavel_empresa_assinatura_url,
+        colaborador: doc.assinatura_colaborador_url,
+      },
+      editavel: true,
+    }
 
     try {
-      const res = await supabase.functions.invoke('generate-hr-pdf', {
-        body: {
-          title: doc.title,
-          content: doc.content,
-          company: doc.company,
-          category: template?.category || 'Documento',
-          signatureUrl: profile?.signature_url || null,
-          hasEditableFields: template?.category === 'Contrato',
-        },
-      })
-
+      const res = await supabase.functions.invoke('generate-hr-pdf', { body: payload })
       if (res.error) throw res.error
-
-      if (res.data && res.data.pdfDataUri) {
+      if (res.data?.pdfDataUri) {
         const a = document.createElement('a')
         a.href = res.data.pdfDataUri
-        a.download = `${doc.title}.pdf`
+        a.download = `${doc.titulo}.pdf`
         a.click()
-      } else {
-        throw new Error('Falha no formato do arquivo recebido.')
+        if (user) logAudit('documento_gerado', doc.id, 'export', user.id)
       }
-    } catch (e: any) {
-      toast({ title: 'Erro ao gerar PDF', description: e.message, variant: 'destructive' })
+    } catch (e) {
+      toast({ title: 'Erro', variant: 'destructive' })
     }
   }
 
+  const selTemplate = templates.find((t) => t.id === formData.template_id)
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
-            Repositório de Documentos
-          </h1>
+          <h1 className="text-3xl font-bold text-primary">Repositório de Documentos</h1>
           <p className="text-muted-foreground mt-1">
-            Gere e gerencie documentos de RH unificados para {company}
+            Geração dinâmica com preenchimento via Template Engine
           </p>
         </div>
         <Button
           onClick={() => {
-            setFormData({ template_id: '', employee_id: '', title: '', content: '' })
+            setFormData({
+              template_id: '',
+              colaborador_id: '',
+              title: '',
+              content: '',
+              t1_nome: '',
+              t1_cpf: '',
+              t2_nome: '',
+              t2_cpf: '',
+            })
             setIsOpen(true)
           }}
         >
@@ -174,45 +233,36 @@ export default function Documents() {
         </Button>
       </div>
 
-      <Card className="shadow-sm border-border">
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead>Título</TableHead>
                 <TableHead>Colaborador</TableHead>
-                <TableHead>Data</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right">Exportar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {documents.map((d) => (
-                <TableRow key={d.id} className="hover:bg-muted/30">
-                  <TableCell className="font-medium flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" /> {d.title}
+                <TableRow key={d.id}>
+                  <TableCell className="font-medium">
+                    <FileText className="h-4 w-4 inline mr-2 text-primary" /> {d.titulo}
                   </TableCell>
-                  <TableCell>{d.employees?.name || '-'}</TableCell>
-                  <TableCell>{new Date(d.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{d.colaborador?.nome_completo}</TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
-                      {d.status}
+                    <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                      {d.status} v{d.versao_atual}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
+                  <TableCell className="text-right">
                     <Button variant="outline" size="sm" onClick={() => handleExportPDF(d)}>
                       <Download className="h-4 w-4 mr-2" /> PDF
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {documents.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum documento gerado.
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -221,60 +271,98 @@ export default function Documents() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Gerar Novo Documento</DialogTitle>
+            <DialogTitle>Gerar Novo Documento (Auto-preenchimento)</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-6 py-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Colaborador Alvo</Label>
-                <Select value={formData.employee_id} onValueChange={handleEmployeeSelect}>
+                <Label>Colaborador</Label>
+                <Select
+                  value={formData.colaborador_id}
+                  onValueChange={(v) => processContent(formData.template_id, v)}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {employees.map((e) => (
                       <SelectItem key={e.id} value={e.id}>
-                        {e.name} - {e.role}
+                        {e.nome_completo}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Modelo de Documento</Label>
+                <Label>Modelo</Label>
                 <Select
                   value={formData.template_id}
-                  onValueChange={handleTemplateSelect}
-                  disabled={!formData.employee_id}
+                  onValueChange={(v) => processContent(v, formData.colaborador_id)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
+                    <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.title} ({t.category})
+                        {t.nome} ({t.tipo_documento})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Título do Documento</Label>
+                <Label>Título Salvo</Label>
                 <Input
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
-            </div>
 
+              {selTemplate?.tipo_documento === 'Contrato' && (
+                <div className="grid grid-cols-2 gap-2 p-3 bg-muted/30 border rounded mt-2">
+                  <p className="col-span-2 text-xs font-bold mb-1">Testemunhas Obrigatórias</p>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">T1 Nome</Label>
+                    <Input
+                      className="h-7 text-xs"
+                      value={formData.t1_nome}
+                      onChange={(e) => setFormData({ ...formData, t1_nome: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">T1 CPF</Label>
+                    <Input
+                      className="h-7 text-xs"
+                      value={formData.t1_cpf}
+                      onChange={(e) => setFormData({ ...formData, t1_cpf: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">T2 Nome</Label>
+                    <Input
+                      className="h-7 text-xs"
+                      value={formData.t2_nome}
+                      onChange={(e) => setFormData({ ...formData, t2_nome: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">T2 CPF</Label>
+                    <Input
+                      className="h-7 text-xs"
+                      value={formData.t2_cpf}
+                      onChange={(e) => setFormData({ ...formData, t2_cpf: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
-              <Label>Pré-visualização (Editável para ajustes pontuais)</Label>
+              <Label>Pré-visualização do Documento</Label>
               <Textarea
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                className="min-h-[300px] font-mono text-sm bg-muted/20"
-                placeholder="O conteúdo do modelo preenchido aparecerá aqui..."
+                className="h-[300px] text-xs font-mono"
               />
             </div>
           </div>
@@ -283,10 +371,10 @@ export default function Documents() {
               Cancelar
             </Button>
             <Button
+              disabled={!formData.template_id || !formData.colaborador_id}
               onClick={handleGenerate}
-              disabled={!formData.template_id || !formData.employee_id}
             >
-              Salvar no Repositório
+              Salvar Documento Final
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -17,24 +17,35 @@ import {
 import { Trash2, Plus, ArrowLeft, Edit2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
+import { logAudit } from '@/lib/audit'
 
 export default function Roles() {
   const { company } = useOutletContext<AppContextType>()
+  const { user } = useAuth()
   const [roles, setRoles] = useState<any[]>([])
+  const [empId, setEmpId] = useState<string>('')
   const [name, setName] = useState('')
   const [hourlyRate, setHourlyRate] = useState('')
   const [dailyRate, setDailyRate] = useState('')
-  const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const fetchRoles = async () => {
-    const { data } = await supabase
-      .from('hr_roles')
-      .select('*')
-      .eq('company', company)
-      .order('name')
-    if (data) setRoles(data)
+    const { data: empData } = await supabase
+      .from('empresa_contratante')
+      .select('id')
+      .eq('nome_fantasia', company)
+      .single()
+    if (empData) {
+      setEmpId(empData.id)
+      const { data } = await supabase
+        .from('cargo')
+        .select('*')
+        .eq('empresa_id', empData.id)
+        .order('nome')
+      if (data) setRoles(data)
+    }
   }
 
   useEffect(() => {
@@ -45,90 +56,82 @@ export default function Roles() {
     let sanitized = val.replace(/[^0-9,]/g, '')
     if (sanitized.length > 1 && sanitized.startsWith('0') && !sanitized.startsWith('0,')) {
       sanitized = sanitized.replace(/^0+/, '')
-      if (sanitized.startsWith(',')) {
-        sanitized = '0' + sanitized
-      }
+      if (sanitized.startsWith(',')) sanitized = '0' + sanitized
     }
     setHourlyRate(sanitized)
     const h = parseFloat(sanitized.replace(',', '.'))
-    if (!isNaN(h)) {
-      setDailyRate((h * 8).toFixed(2).replace('.', ','))
-    } else {
-      setDailyRate('')
-    }
+    if (!isNaN(h)) setDailyRate((h * 8).toFixed(2).replace('.', ','))
+    else setDailyRate('')
   }
 
   const handleDailyChange = (val: string) => {
     let sanitized = val.replace(/[^0-9,]/g, '')
     if (sanitized.length > 1 && sanitized.startsWith('0') && !sanitized.startsWith('0,')) {
       sanitized = sanitized.replace(/^0+/, '')
-      if (sanitized.startsWith(',')) {
-        sanitized = '0' + sanitized
-      }
+      if (sanitized.startsWith(',')) sanitized = '0' + sanitized
     }
     setDailyRate(sanitized)
   }
 
   const handleFocus = (setter: (val: string) => void, val: string) => {
-    if (val === '0' || val === '0,00' || val === '0.00' || val === '0,') {
-      setter('')
-    }
+    if (val === '0' || val === '0,00' || val === '0.00' || val === '0,') setter('')
   }
 
   const handleEdit = (r: any) => {
     setEditingId(r.id)
-    setName(r.name)
-    setHourlyRate(r.hourly_rate ? r.hourly_rate.toString().replace('.', ',') : '')
-    setDailyRate(r.daily_rate ? r.daily_rate.toString().replace('.', ',') : '')
-  }
-
-  const handleCancelEdit = () => {
-    setEditingId(null)
-    setName('')
-    setHourlyRate('')
-    setDailyRate('')
+    setName(r.nome)
+    setHourlyRate(r.valor_hora ? r.valor_hora.toString().replace('.', ',') : '')
+    setDailyRate(r.valor_diaria ? r.valor_diaria.toString().replace('.', ',') : '')
   }
 
   const handleSave = async () => {
-    if (!name) return
-    setLoading(true)
-
+    if (!name || !empId) return
     const payload = {
-      company,
-      name,
-      hourly_rate: parseFloat(hourlyRate.toString().replace(',', '.')) || 0,
-      daily_rate: parseFloat(dailyRate.toString().replace(',', '.')) || 0,
+      empresa_id: empId,
+      nome: name,
+      valor_hora: parseFloat(hourlyRate.replace(',', '.')) || 0,
+      valor_diaria: parseFloat(dailyRate.replace(',', '.')) || 0,
+      descricao_rich_text: {},
+      ativo: true,
     }
+
+    const newId = editingId || crypto.randomUUID()
 
     if (editingId) {
-      const { error } = await supabase.from('hr_roles').update(payload).eq('id', editingId)
-      if (!error) {
-        toast({ title: 'Cargo atualizado com sucesso' })
-      } else {
-        toast({ title: 'Erro ao atualizar', variant: 'destructive' })
-      }
+      await supabase
+        .from('hr_roles')
+        .update({ name, hourly_rate: payload.valor_hora, daily_rate: payload.valor_diaria })
+        .eq('id', newId)
+      await supabase.from('cargo').update(payload).eq('id', newId)
+      if (user) logAudit('cargo', newId, 'update', user.id, null, payload)
+      toast({ title: 'Cargo atualizado' })
     } else {
-      const { error } = await supabase.from('hr_roles').insert(payload)
-      if (!error) {
-        toast({ title: 'Cargo salvo com sucesso' })
-      } else {
-        toast({ title: 'Erro ao salvar', variant: 'destructive' })
-      }
+      await supabase
+        .from('hr_roles')
+        .insert({
+          id: newId,
+          company,
+          name,
+          hourly_rate: payload.valor_hora,
+          daily_rate: payload.valor_diaria,
+        })
+      await supabase.from('cargo').insert({ id: newId, ...payload })
+      if (user) logAudit('cargo', newId, 'create', user.id, null, payload)
+      toast({ title: 'Cargo salvo' })
     }
 
-    if (!editingId || !loading) {
-      setName('')
-      setHourlyRate('')
-      setDailyRate('')
-      setEditingId(null)
-      fetchRoles()
-    }
-    setLoading(false)
+    setName('')
+    setHourlyRate('')
+    setDailyRate('')
+    setEditingId(null)
+    fetchRoles()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este cargo?')) return
+    await supabase.from('cargo').delete().eq('id', id)
     await supabase.from('hr_roles').delete().eq('id', id)
+    if (user) logAudit('cargo', id, 'delete', user.id)
     fetchRoles()
   }
 
@@ -136,17 +139,17 @@ export default function Roles() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <Link to="/colaboradores">
-          <Button variant="ghost" size="icon" className="shrink-0">
+          <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Cargos e Valores</h1>
-          <p className="text-muted-foreground mt-1">Gerencie os cargos e taxas da {company}</p>
+          <p className="text-muted-foreground mt-1">Gerencie os cargos da {company}</p>
         </div>
       </div>
 
-      <Card className="shadow-subtle border-border">
+      <Card>
         <CardHeader>
           <CardTitle>{editingId ? 'Editar Cargo' : 'Novo Cargo'}</CardTitle>
         </CardHeader>
@@ -157,7 +160,7 @@ export default function Roles() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Pintor, Auxiliar..."
+                placeholder="Ex: Pintor"
               />
             </div>
             <div className="space-y-2">
@@ -167,7 +170,6 @@ export default function Roles() {
                 onChange={(e) => handleHourlyChange(e.target.value)}
                 onFocus={() => handleFocus(setHourlyRate, hourlyRate)}
                 placeholder="0,00"
-                type="text"
               />
             </div>
             <div className="space-y-2">
@@ -177,16 +179,23 @@ export default function Roles() {
                 onChange={(e) => handleDailyChange(e.target.value)}
                 onFocus={() => handleFocus(setDailyRate, dailyRate)}
                 placeholder="0,00"
-                type="text"
               />
             </div>
             <div className="flex items-center gap-2 md:col-span-5">
               {editingId && (
-                <Button variant="outline" className="w-full md:w-auto" onClick={handleCancelEdit}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingId(null)
+                    setName('')
+                    setHourlyRate('')
+                    setDailyRate('')
+                  }}
+                >
                   Cancelar
                 </Button>
               )}
-              <Button className="w-full md:flex-1" onClick={handleSave} disabled={loading || !name}>
+              <Button className="w-full md:flex-1" onClick={handleSave} disabled={!name}>
                 {editingId ? (
                   'Salvar Alterações'
                 ) : (
@@ -200,7 +209,7 @@ export default function Roles() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-subtle border-border overflow-hidden">
+      <Card className="overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
@@ -212,28 +221,23 @@ export default function Roles() {
           </TableHeader>
           <TableBody>
             {roles.map((r) => (
-              <TableRow key={r.id} className="hover:bg-muted/30">
-                <TableCell className="font-medium">{r.name}</TableCell>
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">{r.nome}</TableCell>
                 <TableCell className="font-mono text-primary">
-                  {r.hourly_rate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {r.valor_hora.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
                 <TableCell className="font-mono text-primary">
-                  {r.daily_rate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {r.valor_diaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-primary hover:bg-primary/10"
-                      onClick={() => handleEdit(r)}
-                    >
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-destructive hover:bg-destructive/10"
+                      className="text-destructive"
                       onClick={() => handleDelete(r.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -242,13 +246,6 @@ export default function Roles() {
                 </TableCell>
               </TableRow>
             ))}
-            {roles.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                  Nenhum cargo cadastrado.
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </Card>
