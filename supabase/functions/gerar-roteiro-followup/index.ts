@@ -1,6 +1,12 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3'
-import { corsHeaders } from '../_shared/cors.ts'
+
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -56,6 +62,18 @@ async function handleLeadInsert(supabase: any, record: any) {
   const lead_id = record.id
   const data_entrada = record.data_entrada || new Date().toISOString()
   const dataEntradaDate = new Date(data_entrada)
+
+  const { data: existing } = await supabase
+    .from('followup_roteiro')
+    .select('dia_sequencia')
+    .eq('lead_id', lead_id)
+
+  if (existing && existing.length > 0) {
+    return new Response(JSON.stringify({ success: true, message: 'Roteiro already exists.' }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   const sequence = [
     {
@@ -194,20 +212,32 @@ async function handleFollowupUpdate(supabase: any, record: any, old_record: any)
     { offset: 9, tipo: 'ligacao', desc: 'Ligação de fechamento' },
   ]
 
-  const inserts = nextDays.map((seq: any) => {
-    const targetDia = dia + seq.offset
-    const dataPrevista = new Date(dataEntradaDate)
-    dataPrevista.setDate(dataPrevista.getDate() + targetDia)
+  // Prevent duplicate insertion of tasks
+  const targetDays = nextDays.map((s) => dia + s.offset)
+  const { data: existing } = await supabase
+    .from('followup_roteiro')
+    .select('dia_sequencia')
+    .eq('lead_id', record.lead_id)
+    .in('dia_sequencia', targetDays)
 
-    return {
-      lead_id: record.lead_id,
-      dia_sequencia: targetDia,
-      tipo: seq.tipo,
-      descricao: seq.desc,
-      data_prevista: dataPrevista.toISOString().split('T')[0],
-      concluido: false,
-    }
-  })
+  const existingDays = existing?.map((e) => e.dia_sequencia) || []
+
+  const inserts = nextDays
+    .filter((seq: any) => !existingDays.includes(dia + seq.offset))
+    .map((seq: any) => {
+      const targetDia = dia + seq.offset
+      const dataPrevista = new Date(dataEntradaDate)
+      dataPrevista.setDate(dataPrevista.getDate() + targetDia)
+
+      return {
+        lead_id: record.lead_id,
+        dia_sequencia: targetDia,
+        tipo: seq.tipo,
+        descricao: seq.desc,
+        data_prevista: dataPrevista.toISOString().split('T')[0],
+        concluido: false,
+      }
+    })
 
   const { error: insertError } = await supabase.from('followup_roteiro').insert(inserts)
 

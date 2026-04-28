@@ -749,19 +749,6 @@ Deno.serve(async (req) => {
           },
         ])
       }
-      if (taxTotal > 0) {
-        footData.push([
-          {
-            content: 'Impostos (Apenas Informativo - Já embutidos nos valores acima)',
-            colSpan: 5,
-            styles: { halign: 'right', fontStyle: 'bold', textColor: [100, 116, 139] },
-          },
-          {
-            content: `R$ ${formatBRL(taxTotal)}`,
-            styles: { halign: 'right', fontStyle: 'bold', textColor: [100, 116, 139] },
-          },
-        ])
-      }
       footData.push([
         {
           content: 'VALOR TOTAL DO PROJETO',

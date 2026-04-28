@@ -1,8 +1,8 @@
 {
   "_versions": {
-    "generate-pdf": 72,
+    "generate-pdf": 73,
     "generate-manual-pdf": 32,
-    "gerar-roteiro-followup": 6,
+    "gerar-roteiro-followup": 7,
     "gmail-auth": 6,
     "gmail-callback": 5,
     "gmail-refresh": 6,
@@ -10,7 +10,7 @@
     "email-tracker": 4,
     "send-email": 14,
     "public-proposal": 1,
-    "create-lead-webhook": 4,
+    "create-lead-webhook": 5,
     "schedule-visit": 3,
     "daily-report": 2,
     "invite-user": 3

@@ -118,6 +118,9 @@ Deno.serve(async (req: Request) => {
       if (numero_proposta && isNewProposalForLead) {
         const obsAdd = `[${new Date().toLocaleDateString('pt-BR')}] Nova proposta vinculada: ${numero_proposta}${valor_proposta ? ` (R$ ${valor_proposta})` : ''}`
         newObs = newObs ? `${obsAdd}\n\n${newObs}` : obsAdd
+      } else if (valor_proposta && valor_proposta !== existingLead.valor_proposta) {
+        const obsAdd = `[${new Date().toLocaleDateString('pt-BR')}] Valor da proposta finalizada atualizado: R$ ${valor_proposta}`
+        newObs = newObs ? `${obsAdd}\n\n${newObs}` : obsAdd
       }
 
       const { error } = await supabase
@@ -125,7 +128,8 @@ Deno.serve(async (req: Request) => {
         .update({
           etapa: targetEtapaId,
           numero_proposta: newNumero || existingLead.numero_proposta,
-          valor_proposta: valor_proposta || existingLead.valor_proposta,
+          valor_proposta:
+            valor_proposta !== undefined ? valor_proposta : existingLead.valor_proposta,
           empresa: empresa || existingLead.empresa,
           contato: contato || existingLead.contato,
           email: email || existingLead.email,

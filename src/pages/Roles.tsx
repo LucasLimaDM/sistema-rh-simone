@@ -42,7 +42,13 @@ export default function Roles() {
   }, [company])
 
   const handleHourlyChange = (val: string) => {
-    const sanitized = val.replace(/[^0-9,]/g, '')
+    let sanitized = val.replace(/[^0-9,]/g, '')
+    if (sanitized.length > 1 && sanitized.startsWith('0') && !sanitized.startsWith('0,')) {
+      sanitized = sanitized.replace(/^0+/, '')
+      if (sanitized.startsWith(',')) {
+        sanitized = '0' + sanitized
+      }
+    }
     setHourlyRate(sanitized)
     const h = parseFloat(sanitized.replace(',', '.'))
     if (!isNaN(h)) {
@@ -53,12 +59,18 @@ export default function Roles() {
   }
 
   const handleDailyChange = (val: string) => {
-    const sanitized = val.replace(/[^0-9,]/g, '')
+    let sanitized = val.replace(/[^0-9,]/g, '')
+    if (sanitized.length > 1 && sanitized.startsWith('0') && !sanitized.startsWith('0,')) {
+      sanitized = sanitized.replace(/^0+/, '')
+      if (sanitized.startsWith(',')) {
+        sanitized = '0' + sanitized
+      }
+    }
     setDailyRate(sanitized)
   }
 
   const handleFocus = (setter: (val: string) => void, val: string) => {
-    if (val === '0' || val === '0,00' || val === '0.00') {
+    if (val === '0' || val === '0,00' || val === '0.00' || val === '0,') {
       setter('')
     }
   }
