@@ -42,8 +42,8 @@ BEGIN
     SET tipo_usuario = 'Admin', nome_completo = 'Simone'
     WHERE email = 'simone@primerpisos.com.br';
   ELSE
-    INSERT INTO public.usuario_sistema (id, email, nome_completo, tipo_usuario, senha_hash, ativo)
-    SELECT id, email, 'Simone', 'Admin', 'senha', true
+    INSERT INTO public.usuario_sistema (id, email, nome_completo, tipo_usuario, senha_hash, ativo, cpf)
+    SELECT id, email, 'Simone', 'Admin', 'senha', true, '000.000.000-00'
     FROM auth.users
     WHERE email = 'simone@primerpisos.com.br'
     LIMIT 1;
