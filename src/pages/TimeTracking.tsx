@@ -84,12 +84,35 @@ export default function TimeTracking() {
 
   useEffect(() => {
     supabase
-      .from('employees')
-      .select('id, name, role, hr_roles(hourly_rate, daily_rate)')
-      .eq('company', company)
-      .order('name')
-      .then(({ data }) => {
-        if (data) setEmployees(data)
+      .from('empresa_contratante')
+      .select('id')
+      .eq('nome_fantasia', company)
+      .single()
+      .then(({ data: empData }) => {
+        if (empData) {
+          supabase
+            .from('colaborador')
+            .select(
+              'id, nome_completo, cargo_nome_snapshot, valor_hora_snapshot, valor_diaria_snapshot',
+            )
+            .eq('empresa_id', empData.id)
+            .order('nome_completo')
+            .then(({ data }) => {
+              if (data) {
+                setEmployees(
+                  data.map((e) => ({
+                    id: e.id,
+                    name: e.nome_completo,
+                    role: e.cargo_nome_snapshot,
+                    hr_roles: {
+                      hourly_rate: e.valor_hora_snapshot,
+                      daily_rate: e.valor_diaria_snapshot,
+                    },
+                  })),
+                )
+              }
+            })
+        }
       })
   }, [company])
 
