@@ -46,7 +46,10 @@ BEGIN
         ) VALUES (
           emp_record.id,
           v_empresa_id,
-          COALESCE(emp_record.contract_type, 'PF'),
+          CASE 
+            WHEN emp_record.contract_type IN ('PJ', 'LTDA', 'MEI') THEN 'PJ'
+            ELSE 'PF'
+          END,
           emp_record.name,
           COALESCE(emp_record.cpf, ''),
           v_cargo_id,
