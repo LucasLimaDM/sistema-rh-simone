@@ -74,19 +74,33 @@ export default function Templates() {
   }, [company])
 
   const handleSave = async () => {
-    const requiredPlaceholders: Record<string, string[]> = {
-      Contrato: ['{{NOME_EMPRESA}}', '{{NOME_COLABORADOR}}', '{{CARGO_NOME}}', '{{VALOR_HORA}}'],
-      OrdemServico: ['{{NOME_EMPRESA}}', '{{NOME_COLABORADOR}}', '{{CARGO_NOME}}'],
-      NR: ['{{NOME_EMPRESA}}', '{{NOME_COLABORADOR}}', '{{CPF_COLABORADOR}}', '{{DATA_CURSO}}'],
+    const requiredPlaceholders: Record<string, RegExp[]> = {
+      Contrato: [
+        /{{(NOME_EMPRESA|CONTRATANTE_RAZAO_SOCIAL|RAZAO_SOCIAL_CONTRATANTE)}}/i,
+        /{{(NOME_COLABORADOR|CONTRATADA_NOME|NOME_CONTRATADA)}}/i,
+        /{{CARGO_NOME}}/i,
+        /{{VALOR_HORA}}/i,
+      ],
+      OrdemServico: [
+        /{{(NOME_EMPRESA|CONTRATANTE_RAZAO_SOCIAL|RAZAO_SOCIAL_CONTRATANTE)}}/i,
+        /{{(NOME_COLABORADOR|CONTRATADA_NOME|NOME_CONTRATADA)}}/i,
+        /{{CARGO_NOME}}/i,
+      ],
+      NR: [
+        /{{(NOME_EMPRESA|CONTRATANTE_RAZAO_SOCIAL|RAZAO_SOCIAL_CONTRATANTE)}}/i,
+        /{{(NOME_COLABORADOR|CONTRATADA_NOME|NOME_CONTRATADA)}}/i,
+        /{{(CPF_COLABORADOR|CONTRATADA_CPF_CNPJ|CPF_CNPJ_CONTRATADA|CPF_CONTRATADA|CONTRATADA_CPF)}}/i,
+        /{{DATA_CURSO}}/i,
+      ],
     }
 
     const reqList = requiredPlaceholders[formData.tipo_documento] || []
-    const missing = reqList.filter((p) => !formData.content.includes(p))
+    const missing = reqList.filter((regex) => !regex.test(formData.content))
 
     if (missing.length > 0) {
       toast({
         title: 'Validação de Template Falhou',
-        description: `O modelo do tipo ${formData.tipo_documento} requer as seguintes tags: ${missing.join(', ')}`,
+        description: `O modelo requer algumas tags essenciais que não foram encontradas.`,
         variant: 'destructive',
       })
       return
@@ -220,12 +234,13 @@ export default function Templates() {
         <AlertCircle className="h-4 w-4 text-orange-600" />
         <AlertTitle>Tags Inteligentes Disponíveis</AlertTitle>
         <AlertDescription className="text-xs mt-2 font-mono space-y-1">
-          <p>{`{{CONTRATANTE_RAZAO_SOCIAL}}, {{CONTRATANTE_CNPJ}}, {{CONTRATANTE_ENDERECO}}, {{CONTRATANTE_CIDADE}}, {{CONTRATANTE_UF}}, {{CONTRATANTE_IE}}`}</p>
+          <p>{`{{CONTRATANTE_RAZAO_SOCIAL}}, {{CONTRATANTE_CNPJ}}, {{CONTRATANTE_ENDERECO}}, {{CONTRATANTE_CIDADE}}, {{CONTRATANTE_UF}}, {{CONTRATANTE_IE}}, {{CONTRATANTE_IM}}`}</p>
           <p>{`{{CONTRATADA_NOME}}, {{CONTRATADA_CPF_CNPJ}}, {{CONTRATADA_RG}}, {{CONTRATADA_ENDERECO}}, {{CONTRATADA_BAIRRO}}, {{CONTRATADA_CIDADE}}, {{CONTRATADA_UF}}, {{CONTRATADA_CEP}}`}</p>
           <p>{`{{CARGO_NOME}}, {{CARGO_DESCRICAO}}, {{VALOR_HORA}}, {{VALOR_DIARIA}}, {{DATA_CURSO}}`}</p>
           <p className="mt-2 font-sans text-muted-foreground">
             As testemunhas e assinaturas são adicionadas automaticamente no PDF (tags antigas como{' '}
-            {'{{NOME_EMPRESA}}'} continuam funcionando).
+            {'{{NOME_EMPRESA}}'} ou nomes longos continuam funcionando). Campos vazios serão limpos
+            no documento.
           </p>
         </AlertDescription>
       </Alert>

@@ -90,6 +90,20 @@ export default function Documents() {
     fetchData()
   }, [company])
 
+  const buildAddress = (end: any) => {
+    if (!end || typeof end !== 'object') return ''
+    const parts = []
+    if (end.logradouro) parts.push(end.logradouro)
+    if (end.numero) parts.push(end.numero)
+    if (end.complemento) parts.push(end.complemento)
+    let address = parts.join(', ')
+    if (end.bairro) address += ` - ${end.bairro}`
+    if (end.cidade || end.uf)
+      address += ` - ${end.cidade || ''}${end.cidade && end.uf ? '/' : ''}${end.uf || ''}`
+    if (end.cep) address += ` - CEP: ${end.cep}`
+    return address.replace(/^[,\s-]+|[,\s-]+$/g, '')
+  }
+
   const processContent = (tempId: string, colId: string, dataCurso: string = '') => {
     const template = templates.find((t) => t.id === tempId)
     const col = employees.find((e) => e.id === colId)
@@ -97,66 +111,66 @@ export default function Documents() {
 
     if (col && empresa) {
       const empEnd = empresa.endereco || {}
-      const endEmpresaCompleto = `${empEnd.logradouro || ''}, ${empEnd.numero || ''} ${empEnd.complemento ? '- ' + empEnd.complemento : ''} - ${empEnd.bairro || ''} - ${empEnd.cidade || ''}/${empEnd.uf || ''} - CEP: ${empEnd.cep || ''}`
+      const endEmpresaCompleto = buildAddress(empEnd)
 
       const colEnd = col.endereco || {}
-      const endColCompleto = `${colEnd.logradouro || ''}, ${colEnd.numero || ''} ${colEnd.complemento ? '- ' + colEnd.complemento : ''} - ${colEnd.bairro || ''} - ${colEnd.cidade || ''}/${colEnd.uf || ''} - CEP: ${colEnd.cep || ''}`
+      const endColCompleto = buildAddress(colEnd)
 
       content = content
-        .replace(/{{NOME_EMPRESA}}/g, empresa.razao_social || '')
-        .replace(/{{CONTRATANTE_RAZAO_SOCIAL}}/g, empresa.razao_social || '')
-        .replace(/{{RAZAO_SOCIAL_CONTRATANTE}}/g, empresa.razao_social || '')
-        .replace(/{{CNPJ_EMPRESA}}/g, empresa.cnpj || '')
-        .replace(/{{CONTRATANTE_CNPJ}}/g, empresa.cnpj || '')
-        .replace(/{{CNPJ_CONTRATANTE}}/g, empresa.cnpj || '')
-        .replace(/{{RESPONSAVEL_EMPRESA}}/g, empresa.nome_responsavel || '')
-        .replace(/{{RESPONSAVEL_CONTRATANTE}}/g, empresa.nome_responsavel || '')
-        .replace(/{{CONTRATANTE_RESPONSAVEL}}/g, empresa.nome_responsavel || '')
         .replace(
-          /{{CONTRATANTE_ENDERECO}}/g,
-          endEmpresaCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '',
+          /{{NOME_EMPRESA}}|{{CONTRATANTE_RAZAO_SOCIAL}}|{{RAZAO_SOCIAL_CONTRATANTE}}/gi,
+          empresa.razao_social || '',
         )
         .replace(
-          /{{ENDERECO_CONTRATANTE}}/g,
-          endEmpresaCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '',
+          /{{NOME_FANTASIA_EMPRESA}}|{{CONTRATANTE_NOME_FANTASIA}}|{{NOME_FANTASIA_CONTRATANTE}}/gi,
+          empresa.nome_fantasia || '',
         )
-        .replace(/{{CONTRATANTE_CIDADE}}/g, empEnd.cidade || '')
-        .replace(/{{CIDADE_CONTRATANTE}}/g, empEnd.cidade || '')
-        .replace(/{{CONTRATANTE_UF}}/g, empEnd.uf || '')
-        .replace(/{{UF_CONTRATANTE}}/g, empEnd.uf || '')
-        .replace(/{{CONTRATANTE_IE}}/g, empresa.inscricao_estadual || '')
-        .replace(/{{IE_CONTRATANTE}}/g, empresa.inscricao_estadual || '')
-        .replace(/{{CONTRATANTE_IM}}/g, empresa.inscricao_municipal || '')
-        .replace(/{{IM_CONTRATANTE}}/g, empresa.inscricao_municipal || '')
-
-        .replace(/{{NOME_COLABORADOR}}/g, col.nome_completo || '')
-        .replace(/{{CONTRATADA_NOME}}/g, col.nome_completo || '')
-        .replace(/{{NOME_CONTRATADA}}/g, col.nome_completo || '')
-        .replace(/{{CPF_COLABORADOR}}/g, col.cpf || '')
-        .replace(/{{CONTRATADA_CPF_CNPJ}}/g, col.cnpj || col.cpf || '')
-        .replace(/{{CPF_CNPJ_CONTRATADA}}/g, col.cnpj || col.cpf || '')
-        .replace(/{{RG_COLABORADOR}}/g, col.rg || '')
-        .replace(/{{CONTRATADA_RG}}/g, col.rg || '')
-        .replace(/{{RG_CONTRATADA}}/g, col.rg || '')
-        .replace(/{{CONTRATADA_ENDERECO}}/g, endColCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '')
-        .replace(/{{ENDERECO_CONTRATADA}}/g, endColCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '')
-        .replace(/{{CONTRATADA_BAIRRO}}/g, colEnd.bairro || '')
-        .replace(/{{BAIRRO_CONTRATADA}}/g, colEnd.bairro || '')
-        .replace(/{{CONTRATADA_CIDADE}}/g, colEnd.cidade || '')
-        .replace(/{{CIDADE_CONTRATADA}}/g, colEnd.cidade || '')
-        .replace(/{{CONTRATADA_UF}}/g, colEnd.uf || '')
-        .replace(/{{UF_CONTRATADA}}/g, colEnd.uf || '')
-        .replace(/{{CONTRATADA_CEP}}/g, colEnd.cep || '')
-        .replace(/{{CEP_CONTRATADA}}/g, colEnd.cep || '')
-
-        .replace(/{{CARGO_NOME}}/g, col.cargo_nome_snapshot || '')
-        .replace(/{{CARGO_DESCRICAO}}/g, col.cargo_descricao_snapshot?.texto || '')
-        .replace(/{{VALOR_HORA}}/g, col.valor_hora_snapshot?.toString() || '')
-        .replace(/{{VALOR_DIARIA}}/g, col.valor_diaria_snapshot?.toString() || '')
+        .replace(/{{CNPJ_EMPRESA}}|{{CONTRATANTE_CNPJ}}|{{CNPJ_CONTRATANTE}}/gi, empresa.cnpj || '')
         .replace(
-          /{{DATA_CURSO}}/g,
+          /{{RESPONSAVEL_EMPRESA}}|{{RESPONSAVEL_CONTRATANTE}}|{{CONTRATANTE_RESPONSAVEL}}/gi,
+          empresa.nome_responsavel || '',
+        )
+        .replace(
+          /{{CPF_RESPONSAVEL_EMPRESA}}|{{CPF_RESPONSAVEL_CONTRATANTE}}|{{CONTRATANTE_CPF_RESPONSAVEL}}/gi,
+          empresa.cpf_responsavel || '',
+        )
+        .replace(/{{CONTRATANTE_ENDERECO}}|{{ENDERECO_CONTRATANTE}}/gi, endEmpresaCompleto)
+        .replace(/{{CONTRATANTE_CIDADE}}|{{CIDADE_CONTRATANTE}}/gi, empEnd.cidade || '')
+        .replace(/{{CONTRATANTE_UF}}|{{UF_CONTRATANTE}}/gi, empEnd.uf || '')
+        .replace(
+          /{{CONTRATANTE_IE}}|{{IE_CONTRATANTE}}|{{INSCRICAO_ESTADUAL_CONTRATANTE}}|{{CONTRATANTE_INSCRICAO_ESTADUAL}}/gi,
+          empresa.inscricao_estadual || '',
+        )
+        .replace(
+          /{{CONTRATANTE_IM}}|{{IM_CONTRATANTE}}|{{INSCRICAO_MUNICIPAL_CONTRATANTE}}|{{CONTRATANTE_INSCRICAO_MUNICIPAL}}/gi,
+          empresa.inscricao_municipal || '',
+        )
+
+        .replace(
+          /{{NOME_COLABORADOR}}|{{CONTRATADA_NOME}}|{{NOME_CONTRATADA}}/gi,
+          col.nome_completo || '',
+        )
+        .replace(
+          /{{CPF_COLABORADOR}}|{{CONTRATADA_CPF_CNPJ}}|{{CPF_CNPJ_CONTRATADA}}|{{CPF_CONTRATADA}}|{{CONTRATADA_CPF}}/gi,
+          col.cnpj || col.cpf || '',
+        )
+        .replace(/{{RG_COLABORADOR}}|{{CONTRATADA_RG}}|{{RG_CONTRATADA}}/gi, col.rg || '')
+        .replace(/{{CONTRATADA_ENDERECO}}|{{ENDERECO_CONTRATADA}}/gi, endColCompleto)
+        .replace(/{{CONTRATADA_BAIRRO}}|{{BAIRRO_CONTRATADA}}/gi, colEnd.bairro || '')
+        .replace(/{{CONTRATADA_CIDADE}}|{{CIDADE_CONTRATADA}}/gi, colEnd.cidade || '')
+        .replace(/{{CONTRATADA_UF}}|{{UF_CONTRATADA}}/gi, colEnd.uf || '')
+        .replace(/{{CONTRATADA_CEP}}|{{CEP_CONTRATADA}}/gi, colEnd.cep || '')
+
+        .replace(/{{CARGO_NOME}}/gi, col.cargo_nome_snapshot || '')
+        .replace(/{{CARGO_DESCRICAO}}/gi, col.cargo_descricao_snapshot?.texto || '')
+        .replace(/{{VALOR_HORA}}/gi, col.valor_hora_snapshot?.toString() || '')
+        .replace(/{{VALOR_DIARIA}}/gi, col.valor_diaria_snapshot?.toString() || '')
+        .replace(
+          /{{DATA_CURSO}}/gi,
           dataCurso ? new Date(dataCurso).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
         )
+        // Clean up remaining empty tags
+        .replace(/{{[A-Z0-9_]+}}/gi, '')
     }
 
     setFormData((prev) => ({
@@ -205,9 +219,43 @@ export default function Documents() {
     const t1 = witnesses.find((w) => w.id === formData.t1_id)
     const t2 = witnesses.find((w) => w.id === formData.t2_id)
 
+    // Fetch the correct modelo_versao_id
+    let { data: modeloVersao } = await supabase
+      .from('modelo_versao')
+      .select('id')
+      .eq('modelo_id', template.id)
+      .order('versao', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!modeloVersao) {
+      // Fallback: create an initial version if it doesn't exist
+      const { data: newMv, error: mvError } = await supabase
+        .from('modelo_versao')
+        .insert({
+          modelo_id: template.id,
+          versao: template.versao_atual || 1,
+          arquivo_url: 'template_html',
+          campos_config_snapshot: template.campos_config || {},
+          alterado_por_usuario_id: user.id,
+        })
+        .select('id')
+        .single()
+
+      if (mvError || !newMv) {
+        toast({
+          title: 'Erro de Modelo',
+          description: 'Não foi possível resolver a versão do modelo selecionado.',
+          variant: 'destructive',
+        })
+        return
+      }
+      modeloVersao = newMv
+    }
+
     const payload: any = {
       modelo_id: template.id,
-      modelo_versao_id: template.id, // Simplification
+      modelo_versao_id: modeloVersao.id,
       empresa_id: empresa.id,
       colaborador_id: col?.id,
       cargo_id: col?.cargo_id,
@@ -234,7 +282,19 @@ export default function Documents() {
     if (docId) {
       novaVersao = (formData.versao_atual || 1) + 1
       payload.versao_atual = novaVersao
-      await supabase.from('documento_gerado').update(payload).eq('id', docId)
+      const { error: updateError } = await supabase
+        .from('documento_gerado')
+        .update(payload)
+        .eq('id', docId)
+
+      if (updateError) {
+        toast({
+          title: 'Erro ao atualizar documento',
+          description: updateError.message,
+          variant: 'destructive',
+        })
+        return
+      }
       logAudit('documento_gerado', docId, 'update', user.id)
     } else {
       payload.created_by = user.id
