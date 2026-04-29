@@ -105,28 +105,49 @@ export default function Documents() {
       content = content
         .replace(/{{NOME_EMPRESA}}/g, empresa.razao_social || '')
         .replace(/{{CONTRATANTE_RAZAO_SOCIAL}}/g, empresa.razao_social || '')
+        .replace(/{{RAZAO_SOCIAL_CONTRATANTE}}/g, empresa.razao_social || '')
         .replace(/{{CNPJ_EMPRESA}}/g, empresa.cnpj || '')
         .replace(/{{CONTRATANTE_CNPJ}}/g, empresa.cnpj || '')
+        .replace(/{{CNPJ_CONTRATANTE}}/g, empresa.cnpj || '')
         .replace(/{{RESPONSAVEL_EMPRESA}}/g, empresa.nome_responsavel || '')
+        .replace(/{{RESPONSAVEL_CONTRATANTE}}/g, empresa.nome_responsavel || '')
+        .replace(/{{CONTRATANTE_RESPONSAVEL}}/g, empresa.nome_responsavel || '')
         .replace(
           /{{CONTRATANTE_ENDERECO}}/g,
           endEmpresaCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '',
         )
+        .replace(
+          /{{ENDERECO_CONTRATANTE}}/g,
+          endEmpresaCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '',
+        )
         .replace(/{{CONTRATANTE_CIDADE}}/g, empEnd.cidade || '')
+        .replace(/{{CIDADE_CONTRATANTE}}/g, empEnd.cidade || '')
         .replace(/{{CONTRATANTE_UF}}/g, empEnd.uf || '')
+        .replace(/{{UF_CONTRATANTE}}/g, empEnd.uf || '')
         .replace(/{{CONTRATANTE_IE}}/g, empresa.inscricao_estadual || '')
+        .replace(/{{IE_CONTRATANTE}}/g, empresa.inscricao_estadual || '')
+        .replace(/{{CONTRATANTE_IM}}/g, empresa.inscricao_municipal || '')
+        .replace(/{{IM_CONTRATANTE}}/g, empresa.inscricao_municipal || '')
 
         .replace(/{{NOME_COLABORADOR}}/g, col.nome_completo || '')
         .replace(/{{CONTRATADA_NOME}}/g, col.nome_completo || '')
+        .replace(/{{NOME_CONTRATADA}}/g, col.nome_completo || '')
         .replace(/{{CPF_COLABORADOR}}/g, col.cpf || '')
         .replace(/{{CONTRATADA_CPF_CNPJ}}/g, col.cnpj || col.cpf || '')
+        .replace(/{{CPF_CNPJ_CONTRATADA}}/g, col.cnpj || col.cpf || '')
         .replace(/{{RG_COLABORADOR}}/g, col.rg || '')
         .replace(/{{CONTRATADA_RG}}/g, col.rg || '')
+        .replace(/{{RG_CONTRATADA}}/g, col.rg || '')
         .replace(/{{CONTRATADA_ENDERECO}}/g, endColCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '')
+        .replace(/{{ENDERECO_CONTRATADA}}/g, endColCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '')
         .replace(/{{CONTRATADA_BAIRRO}}/g, colEnd.bairro || '')
+        .replace(/{{BAIRRO_CONTRATADA}}/g, colEnd.bairro || '')
         .replace(/{{CONTRATADA_CIDADE}}/g, colEnd.cidade || '')
+        .replace(/{{CIDADE_CONTRATADA}}/g, colEnd.cidade || '')
         .replace(/{{CONTRATADA_UF}}/g, colEnd.uf || '')
+        .replace(/{{UF_CONTRATADA}}/g, colEnd.uf || '')
         .replace(/{{CONTRATADA_CEP}}/g, colEnd.cep || '')
+        .replace(/{{CEP_CONTRATADA}}/g, colEnd.cep || '')
 
         .replace(/{{CARGO_NOME}}/g, col.cargo_nome_snapshot || '')
         .replace(/{{CARGO_DESCRICAO}}/g, col.cargo_descricao_snapshot?.texto || '')
@@ -153,14 +174,31 @@ export default function Documents() {
     const template = templates.find((t) => t.id === formData.template_id)
     const col = employees.find((e) => e.id === formData.colaborador_id)
 
+    if (!template || !col) {
+      toast({
+        title: 'Erro de Validação',
+        description: 'Selecione o modelo e o colaborador antes de salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     const isContrato = template?.tipo_documento === 'Contrato'
     if (isContrato && !empresa.assinatura_responsavel_url) {
-      toast({ title: 'Assinatura da empresa ausente', variant: 'destructive' })
+      toast({
+        title: 'Assinatura da empresa ausente',
+        description: 'A assinatura do responsável da empresa é obrigatória para contratos.',
+        variant: 'destructive',
+      })
       return
     }
 
     if (isContrato && (!formData.t1_id || !formData.t2_id)) {
-      toast({ title: 'Testemunhas incompletas', variant: 'destructive' })
+      toast({
+        title: 'Testemunhas incompletas',
+        description: 'Selecione as duas testemunhas para gerar o contrato.',
+        variant: 'destructive',
+      })
       return
     }
 
@@ -206,6 +244,16 @@ export default function Documents() {
         .insert(payload)
         .select()
         .single()
+
+      if (error) {
+        toast({
+          title: 'Erro ao criar documento',
+          description: error.message,
+          variant: 'destructive',
+        })
+        return
+      }
+
       if (data) {
         docId = data.id
         logAudit('documento_gerado', docId, 'create', user.id)
@@ -213,16 +261,32 @@ export default function Documents() {
     }
 
     if (docId) {
-      await supabase.from('documento_versao').insert({
+      const { error: versaoError } = await supabase.from('documento_versao').insert({
         documento_id: docId,
         versao: novaVersao,
         arquivo_pdf_url: '',
         dados_snapshot: payload,
         alterado_por_usuario_id: user.id,
       })
-      toast({ title: 'Documento salvo com sucesso.' })
+
+      if (versaoError) {
+        toast({
+          title: 'Erro ao salvar versão',
+          description: versaoError.message,
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({ title: 'Sucesso', description: 'Documento salvo com sucesso.' })
       setIsOpen(false)
       fetchData()
+    } else {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao obter o ID do documento.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -336,12 +400,6 @@ export default function Documents() {
 
   const missingCompanySig = isContrato && !empresa?.assinatura_responsavel_url
   const missingColSig = !!selCol && !selCol.assinatura_url
-
-  const canSave =
-    formData.template_id &&
-    formData.colaborador_id &&
-    !missingCompanySig &&
-    (!isContrato || (formData.t1_id && formData.t2_id))
 
   if (!empresa) {
     return (
@@ -579,9 +637,7 @@ export default function Documents() {
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancelar
             </Button>
-            <Button disabled={!canSave} onClick={handleGenerate}>
-              Salvar Documento Final
-            </Button>
+            <Button onClick={handleGenerate}>Salvar Documento Final</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

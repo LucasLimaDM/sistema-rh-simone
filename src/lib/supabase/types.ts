@@ -1868,6 +1868,36 @@ export type Database = {
         }
         Relationships: []
       }
+      testemunhas: {
+        Row: {
+          assinatura_url: string | null
+          ativo: boolean | null
+          cpf: string
+          created_at: string
+          id: string
+          nome: string
+          rg: string | null
+        }
+        Insert: {
+          assinatura_url?: string | null
+          ativo?: boolean | null
+          cpf: string
+          created_at?: string
+          id?: string
+          nome: string
+          rg?: string | null
+        }
+        Update: {
+          assinatura_url?: string | null
+          ativo?: boolean | null
+          cpf?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          rg?: string | null
+        }
+        Relationships: []
+      }
       time_tracks: {
         Row: {
           created_at: string
@@ -2697,6 +2727,14 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   items: jsonb (nullable, default: '[]'::jsonb)
 //   observation: text (nullable)
+// Table: testemunhas
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   cpf: text (not null)
+//   rg: text (nullable)
+//   assinatura_url: text (nullable)
+//   ativo: boolean (nullable, default: true)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: time_tracks
 //   id: uuid (not null, default: gen_random_uuid())
 //   employee_id: uuid (not null)
@@ -2911,6 +2949,8 @@ export const Constants = {
 //   FOREIGN KEY proposals_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: tax_settings
 //   PRIMARY KEY tax_settings_pkey: PRIMARY KEY (id)
+// Table: testemunhas
+//   PRIMARY KEY testemunhas_pkey: PRIMARY KEY (id)
 // Table: time_tracks
 //   FOREIGN KEY time_tracks_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 //   PRIMARY KEY time_tracks_pkey: PRIMARY KEY (id)
@@ -3109,6 +3149,9 @@ export const Constants = {
 //   Policy "authenticated_all_tax_settings" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: testemunhas
+//   Policy "authenticated_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: time_tracks
 //   Policy "time_tracks_policy" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
