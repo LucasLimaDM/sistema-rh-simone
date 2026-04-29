@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,17 +11,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { Trash2, ExternalLink, UploadCloud } from 'lucide-react'
+import { X, UploadCloud } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
 import { maskCPF, maskCNPJ, maskPhone } from '@/lib/utils'
 
+const maskCEP = (v: string) => {
+  let val = v.replace(/\D/g, '')
+  if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2')
+  return val.slice(0, 9)
+}
+
+interface DocFile {
+  id?: string
+  file?: File
+  file_url?: string
+  name: string
+}
+
 interface DocState {
   expiry_date: string
-  file_url?: string
-  file?: File
+  files: DocFile[]
 }
+
+const DOCUMENT_TYPES = [
+  'ASO',
+  'NR-35',
+  'OS',
+  'CNPJ',
+  'RG',
+  'CPF',
+  'COMPROVANTE DE RESIDÊNCIA',
+  'NR-6',
+  'NR-12',
+  'NR-18',
+  'EPI',
+  'VACINAS',
+  'CNDs',
+]
 
 export function EmployeeFormSheet({
   company,
@@ -63,6 +83,7 @@ export function EmployeeFormSheet({
     uf: '',
     cargo_id: '',
     tipo_colaborador: 'PF',
+    razao_social: '',
     admission_date: '',
     observations: '',
   })
@@ -98,14 +119,23 @@ export function EmployeeFormSheet({
           uf: employeeToEdit.endereco?.uf || '',
           cargo_id: employeeToEdit.cargo_id || '',
           tipo_colaborador: employeeToEdit.tipo_colaborador || 'PF',
+          razao_social:
+            employeeToEdit.dados_dinamicos?.razao_social ||
+            employeeToEdit.employees?.company_name ||
+            '',
           admission_date: employeeToEdit.dados_dinamicos?.admission_date || '',
           observations: employeeToEdit.dados_dinamicos?.observations || '',
         })
         const d: Record<string, DocState> = {}
         employeeToEdit.employee_documents?.forEach((doc: any) => {
-          d[doc.document_type] = {
-            expiry_date: doc.expiry_date || '',
-            file_url: doc.file_url || '',
+          if (!d[doc.document_type])
+            d[doc.document_type] = { expiry_date: doc.expiry_date || '', files: [] }
+          if (doc.file_url) {
+            d[doc.document_type].files.push({
+              id: doc.id,
+              file_url: doc.file_url,
+              name: doc.file_url.split('/').pop() || 'Documento',
+            })
           }
         })
         setDocs(d)
@@ -127,6 +157,7 @@ export function EmployeeFormSheet({
           uf: '',
           cargo_id: '',
           tipo_colaborador: 'PF',
+          razao_social: '',
           admission_date: '',
           observations: '',
         })
@@ -136,8 +167,9 @@ export function EmployeeFormSheet({
   }, [open, employeeToEdit, empresaId])
 
   const handleCep = async (val: string) => {
-    setData((prev) => ({ ...prev, cep: val }))
-    const cleanCep = val.replace(/\D/g, '')
+    const masked = maskCEP(val)
+    setData((prev) => ({ ...prev, cep: masked }))
+    const cleanCep = masked.replace(/\D/g, '')
     if (cleanCep.length === 8) {
       try {
         const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
@@ -151,28 +183,13 @@ export function EmployeeFormSheet({
             uf: viacep.uf || prev.uf,
           }))
       } catch {
-        /* intentionally ignored */
+        /* ignore */
       }
     }
   }
 
   const handleSave = async () => {
     setLoading(true)
-    let uploadedUrls: Record<string, string> = {}
-    for (const [type, doc] of Object.entries(docs)) {
-      if (doc.file) {
-        const fileExt = doc.file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-        const { data: upData } = await supabase.storage
-          .from('employee_documents')
-          .upload(fileName, doc.file)
-        if (upData)
-          uploadedUrls[type] = supabase.storage
-            .from('employee_documents')
-            .getPublicUrl(fileName).data.publicUrl
-      } else if (doc.file_url) uploadedUrls[type] = doc.file_url
-    }
-
     const selectedRole = roles.find((r) => r.id === data.cargo_id)
     const newId = employeeToEdit?.id || crypto.randomUUID()
 
@@ -200,7 +217,11 @@ export function EmployeeFormSheet({
         cidade: data.cidade,
         uf: data.uf,
       },
-      dados_dinamicos: { admission_date: data.admission_date, observations: data.observations },
+      dados_dinamicos: {
+        admission_date: data.admission_date,
+        observations: data.observations,
+        razao_social: data.razao_social,
+      },
       ativo: true,
     }
 
@@ -212,6 +233,7 @@ export function EmployeeFormSheet({
         contract_type: data.tipo_colaborador,
         role: selectedRole?.nome || 'Colaborador',
         status: 'ativo',
+        company_name: data.tipo_colaborador === 'MEI' ? data.razao_social : null,
       })
       await supabase.from('colaborador').insert({ id: newId, ...payload })
       if (user) await logAudit('colaborador', newId, 'create', user.id, null, payload)
@@ -222,6 +244,7 @@ export function EmployeeFormSheet({
           name: data.nome_completo,
           contract_type: data.tipo_colaborador,
           role: selectedRole?.nome || 'Colaborador',
+          company_name: data.tipo_colaborador === 'MEI' ? data.razao_social : null,
         })
         .eq('id', newId)
       await supabase.from('colaborador').update(payload).eq('id', newId)
@@ -230,15 +253,38 @@ export function EmployeeFormSheet({
 
     await supabase.from('employee_documents').delete().eq('employee_id', newId)
     const docInserts: any[] = []
-    Object.entries(docs).forEach(([type, doc]) => {
-      if (doc.expiry_date || uploadedUrls[type])
+
+    for (const [type, docState] of Object.entries(docs)) {
+      for (const docFile of docState.files) {
+        let finalUrl = docFile.file_url
+        if (docFile.file) {
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${docFile.file.name.split('.').pop()}`
+          const { data: upData } = await supabase.storage
+            .from('employee_documents')
+            .upload(fileName, docFile.file)
+          if (upData)
+            finalUrl = supabase.storage.from('employee_documents').getPublicUrl(fileName)
+              .data.publicUrl
+        }
+        if (finalUrl || docState.expiry_date) {
+          docInserts.push({
+            employee_id: newId,
+            document_type: type,
+            expiry_date: docState.expiry_date || null,
+            file_url: finalUrl || null,
+          })
+        }
+      }
+      if (docState.files.length === 0 && docState.expiry_date) {
         docInserts.push({
           employee_id: newId,
           document_type: type,
-          expiry_date: doc.expiry_date || null,
-          file_url: uploadedUrls[type] || null,
+          expiry_date: docState.expiry_date || null,
+          file_url: null,
         })
-    })
+      }
+    }
+
     if (docInserts.length > 0) await supabase.from('employee_documents').insert(docInserts)
 
     setLoading(false)
@@ -251,9 +297,6 @@ export function EmployeeFormSheet({
       <SheetContent className="sm:max-w-xl w-full overflow-y-auto p-0 flex flex-col">
         <SheetHeader className="p-6 pb-2 border-b sticky top-0 bg-background z-10">
           <SheetTitle>{employeeToEdit ? 'Editar Colaborador' : 'Novo Colaborador'}</SheetTitle>
-          <SheetDescription>
-            Preencha os dados e vincule a um cargo para preenchimento de documentos.
-          </SheetDescription>
         </SheetHeader>
         <div className="p-6 space-y-8 flex-1">
           <div className="space-y-3">
@@ -271,7 +314,6 @@ export function EmployeeFormSheet({
                 <Input
                   value={data.cpf}
                   onChange={(e) => setData({ ...data, cpf: maskCPF(e.target.value) })}
-                  placeholder=""
                 />
               </div>
               <div className="space-y-1.5">
@@ -279,26 +321,20 @@ export function EmployeeFormSheet({
                 <Input
                   value={data.cnpj}
                   onChange={(e) => setData({ ...data, cnpj: maskCNPJ(e.target.value) })}
-                  placeholder=""
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>RG</Label>
-                <Input
-                  value={data.rg}
-                  onChange={(e) => setData({ ...data, rg: e.target.value })}
-                  placeholder=""
-                />
+                <Input value={data.rg} onChange={(e) => setData({ ...data, rg: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <Label>Telefone</Label>
                 <Input
                   value={data.telefone}
                   onChange={(e) => setData({ ...data, telefone: maskPhone(e.target.value) })}
-                  placeholder=""
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="col-span-2 space-y-1.5">
                 <Label>E-mail</Label>
                 <Input
                   type="email"
@@ -308,6 +344,64 @@ export function EmployeeFormSheet({
               </div>
             </div>
           </div>
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-primary">Endereço</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>CEP</Label>
+                <Input
+                  value={data.cep}
+                  onChange={(e) => handleCep(e.target.value)}
+                  placeholder="00000-000"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Logradouro</Label>
+                <Input
+                  value={data.logradouro}
+                  onChange={(e) => setData({ ...data, logradouro: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Número</Label>
+                <Input
+                  value={data.numero}
+                  onChange={(e) => setData({ ...data, numero: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Complemento</Label>
+                <Input
+                  value={data.complemento}
+                  onChange={(e) => setData({ ...data, complemento: e.target.value })}
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                <Label>Bairro</Label>
+                <Input
+                  value={data.bairro}
+                  onChange={(e) => setData({ ...data, bairro: e.target.value })}
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                <Label>Cidade</Label>
+                <Input
+                  value={data.cidade}
+                  onChange={(e) => setData({ ...data, cidade: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Estado (UF)</Label>
+                <Input
+                  value={data.uf}
+                  onChange={(e) => setData({ ...data, uf: e.target.value.toUpperCase() })}
+                  maxLength={2}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-primary">Vínculo e Cargo</h4>
             <div className="grid grid-cols-2 gap-3">
@@ -344,38 +438,97 @@ export function EmployeeFormSheet({
                   </SelectContent>
                 </Select>
               </div>
+              {data.tipo_colaborador === 'MEI' && (
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Razão Social</Label>
+                  <Input
+                    value={data.razao_social}
+                    onChange={(e) => setData({ ...data, razao_social: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
           </div>
+
           <div className="space-y-3 pb-8">
-            <h4 className="text-sm font-semibold text-primary">Documentos NR e ASO</h4>
+            <h4 className="text-sm font-semibold text-primary">Documentos</h4>
             <div className="grid grid-cols-2 gap-3">
-              {['ASO', 'NR-35', 'NR-10', 'OS'].map((type) => (
-                <div key={type} className="p-3 border rounded bg-muted/20 text-xs">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold">{type}</span>
-                    <Input
-                      type="date"
-                      className="h-6 w-28 text-xs"
-                      value={docs[type]?.expiry_date || ''}
-                      onChange={(e) =>
-                        setDocs({ ...docs, [type]: { ...docs[type], expiry_date: e.target.value } })
-                      }
-                    />
+              {DOCUMENT_TYPES.map((type) => {
+                const docState = docs[type] || { expiry_date: '', files: [] }
+                return (
+                  <div
+                    key={type}
+                    className="p-3 border rounded bg-muted/20 text-xs col-span-2 sm:col-span-1 space-y-2"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold">{type}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground text-[10px]">Venc.:</span>
+                        <Input
+                          type="date"
+                          className="h-6 w-28 text-xs"
+                          value={docState.expiry_date || ''}
+                          onChange={(e) =>
+                            setDocs({
+                              ...docs,
+                              [type]: { ...docState, expiry_date: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {docState.files.length > 0 && (
+                        <div className="space-y-1">
+                          {docState.files.map((f, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between bg-background border px-2 py-1 rounded"
+                            >
+                              <span className="truncate max-w-[150px] text-[10px]" title={f.name}>
+                                {f.name}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  const newFiles = [...docState.files]
+                                  newFiles.splice(i, 1)
+                                  setDocs({ ...docs, [type]: { ...docState, files: newFiles } })
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Label className="cursor-pointer flex items-center justify-center gap-1 border border-dashed rounded h-7 hover:bg-muted bg-background transition-colors">
+                        <UploadCloud className="h-3 w-3" /> Anexar
+                        <input
+                          type="file"
+                          className="hidden"
+                          multiple
+                          accept=".pdf,image/jpeg,image/png"
+                          onChange={(e) => {
+                            if (e.target.files?.length) {
+                              const newFiles = Array.from(e.target.files).map((file) => ({
+                                file,
+                                name: file.name,
+                              }))
+                              setDocs({
+                                ...docs,
+                                [type]: { ...docState, files: [...docState.files, ...newFiles] },
+                              })
+                            }
+                          }}
+                        />
+                      </Label>
+                    </div>
                   </div>
-                  <Label className="cursor-pointer flex items-center justify-center gap-1 border border-dashed rounded h-6 hover:bg-muted">
-                    <UploadCloud className="h-3 w-3" /> {docs[type]?.file ? 'Pronto' : 'Anexar PDF'}
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,image/*"
-                      onChange={(e) =>
-                        e.target.files?.[0] &&
-                        setDocs({ ...docs, [type]: { ...docs[type], file: e.target.files[0] } })
-                      }
-                    />
-                  </Label>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

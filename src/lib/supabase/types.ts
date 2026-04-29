@@ -2919,7 +2919,7 @@ export const Constants = {
 //   FOREIGN KEY user_settings_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: usuario_sistema
 //   PRIMARY KEY usuario_sistema_pkey: PRIMARY KEY (id)
-//   CHECK usuario_sistema_tipo_usuario_check: CHECK ((tipo_usuario = ANY (ARRAY['Admin'::text, 'Coordenadora'::text, 'NovoUsuario'::text, 'Colaborador'::text, 'Encarregado'::text])))
+//   CHECK usuario_sistema_tipo_usuario_check: CHECK ((tipo_usuario = ANY (ARRAY['Admin'::text, 'Coordenadora'::text, 'NovoUsuario'::text, 'Colaborador'::text, 'Encarregado'::text, 'Usuario'::text])))
 // Table: vendedores
 //   PRIMARY KEY vendedores_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY vendedores_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
