@@ -27,10 +27,21 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { FileText, Plus, Download, Edit2, AlertCircle } from 'lucide-react'
+import { FileText, Plus, Download, Edit2, AlertCircle, Trash2, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
@@ -43,6 +54,11 @@ export default function Documents() {
   const [employees, setEmployees] = useState<any[]>([])
   const [empresa, setEmpresa] = useState<any>(null)
   const [witnesses, setWitnesses] = useState<any[]>([])
+
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([])
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [docToDelete, setDocToDelete] = useState<string | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -161,6 +177,27 @@ export default function Documents() {
         .replace(/{{CONTRATADA_UF}}|{{UF_CONTRATADA}}/gi, colEnd.uf || '')
         .replace(/{{CONTRATADA_CEP}}|{{CEP_CONTRATADA}}/gi, colEnd.cep || '')
 
+        .replace(
+          /{{EMAIL_COLABORADOR}}|{{CONTRATADA_EMAIL}}|{{EMAIL_CONTRATADA}}/gi,
+          col.email || '',
+        )
+        .replace(
+          /{{WHATSAPP_COLABORADOR}}|{{TELEFONE_COLABORADOR}}|{{CONTRATADA_WHATSAPP}}|{{CONTRATADA_TELEFONE}}|{{WHATSAPP_CONTRATADA}}/gi,
+          col.telefone || '',
+        )
+        .replace(
+          /{{ESTADO_CIVIL_COLABORADOR}}|{{CONTRATADA_ESTADO_CIVIL}}|{{ESTADO_CIVIL_CONTRATADA}}/gi,
+          col.dados_dinamicos?.estado_civil || 'solteiro(a)',
+        )
+        .replace(
+          /{{NACIONALIDADE_COLABORADOR}}|{{CONTRATADA_NACIONALIDADE}}|{{NACIONALIDADE_CONTRATADA}}/gi,
+          col.dados_dinamicos?.nacionalidade || 'brasileiro(a)',
+        )
+        .replace(
+          /{{PROFISSAO_COLABORADOR}}|{{CONTRATADA_PROFISSAO}}|{{PROFISSAO_CONTRATADA}}/gi,
+          col.cargo_nome_snapshot || '',
+        )
+
         .replace(/{{CARGO_NOME}}/gi, col.cargo_nome_snapshot || '')
         .replace(/{{CARGO_DESCRICAO}}/gi, col.cargo_descricao_snapshot?.texto || '')
         .replace(/{{VALOR_HORA}}/gi, col.valor_hora_snapshot?.toString() || '')
@@ -216,137 +253,179 @@ export default function Documents() {
       return
     }
 
-    const t1 = witnesses.find((w) => w.id === formData.t1_id)
-    const t2 = witnesses.find((w) => w.id === formData.t2_id)
+    setIsGenerating(true)
 
-    // Fetch the correct modelo_versao_id
-    let { data: modeloVersao } = await supabase
-      .from('modelo_versao')
-      .select('id')
-      .eq('modelo_id', template.id)
-      .order('versao', { ascending: false })
-      .limit(1)
-      .single()
+    try {
+      const t1 = witnesses.find((w) => w.id === formData.t1_id)
+      const t2 = witnesses.find((w) => w.id === formData.t2_id)
 
-    if (!modeloVersao) {
-      // Fallback: create an initial version if it doesn't exist
-      const { data: newMv, error: mvError } = await supabase
+      // Fetch the correct modelo_versao_id
+      let { data: modeloVersao } = await supabase
         .from('modelo_versao')
-        .insert({
-          modelo_id: template.id,
-          versao: template.versao_atual || 1,
-          arquivo_url: 'template_html',
-          campos_config_snapshot: template.campos_config || {},
+        .select('id')
+        .eq('modelo_id', template.id)
+        .order('versao', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!modeloVersao) {
+        // Fallback: create an initial version if it doesn't exist
+        const { data: newMv, error: mvError } = await supabase
+          .from('modelo_versao')
+          .insert({
+            modelo_id: template.id,
+            versao: template.versao_atual || 1,
+            arquivo_url: 'template_html',
+            campos_config_snapshot: template.campos_config || {},
+            alterado_por_usuario_id: user.id,
+          })
+          .select('id')
+          .single()
+
+        if (mvError || !newMv) {
+          throw new Error('Não foi possível resolver a versão do modelo selecionado.')
+        }
+        modeloVersao = newMv
+      }
+
+      const payload: any = {
+        modelo_id: template.id,
+        modelo_versao_id: modeloVersao.id,
+        empresa_id: empresa.id,
+        colaborador_id: col?.id,
+        cargo_id: col?.cargo_id,
+        titulo: formData.title,
+        tipo_documento: template.tipo_documento,
+        status: 'finalizado',
+        dados_preenchidos: { content: formData.content, data_curso: formData.data_curso },
+        responsavel_empresa_nome: empresa.nome_responsavel,
+        responsavel_empresa_assinatura_url: empresa.assinatura_responsavel_url,
+        testemunha_1_nome: t1?.nome || '',
+        testemunha_1_cpf: t1?.cpf || '',
+        testemunha_1_assinatura_url: t1?.assinatura_url || null,
+        testemunha_2_nome: t2?.nome || '',
+        testemunha_2_cpf: t2?.cpf || '',
+        testemunha_2_assinatura_url: t2?.assinatura_url || null,
+        assinatura_colaborador_url: col?.assinatura_url || null,
+        campos_editaveis_pdf: {},
+        updated_by: user.id,
+      }
+
+      let docId = formData.id
+      let novaVersao = 1
+
+      if (docId) {
+        novaVersao = (formData.versao_atual || 1) + 1
+        payload.versao_atual = novaVersao
+        const { error: updateError } = await supabase
+          .from('documento_gerado')
+          .update(payload)
+          .eq('id', docId)
+
+        if (updateError) throw updateError
+        logAudit('documento_gerado', docId, 'update', user.id)
+      } else {
+        payload.created_by = user.id
+        payload.versao_atual = 1
+        const { data, error } = await supabase
+          .from('documento_gerado')
+          .insert(payload)
+          .select()
+          .single()
+
+        if (error) throw error
+        if (data) {
+          docId = data.id
+          logAudit('documento_gerado', docId, 'create', user.id)
+        }
+      }
+
+      if (docId) {
+        toast({ title: 'Gerando PDF...', description: 'Aguarde o processamento.' })
+
+        const pdfPayload = {
+          title: payload.titulo,
+          tipoDocumento: payload.tipo_documento,
+          conteudo: payload.dados_preenchidos?.content || '',
+          empresa: empresa,
+          colaborador: col,
+          testemunhas: [
+            {
+              nome: payload.testemunha_1_nome,
+              cpf: payload.testemunha_1_cpf,
+              assinatura: payload.testemunha_1_assinatura_url,
+            },
+            {
+              nome: payload.testemunha_2_nome,
+              cpf: payload.testemunha_2_cpf,
+              assinatura: payload.testemunha_2_assinatura_url,
+            },
+          ],
+          assinaturas: {
+            responsavel: payload.responsavel_empresa_assinatura_url,
+            colaborador: payload.assinatura_colaborador_url,
+          },
+          editavel: true,
+        }
+
+        let publicUrl = ''
+
+        try {
+          const res = await supabase.functions.invoke('generate-hr-pdf', { body: pdfPayload })
+          if (res.data?.pdfDataUri) {
+            const resDataUri = res.data.pdfDataUri
+            const base64Data = resDataUri.split(',')[1]
+            const byteCharacters = atob(base64Data)
+            const byteNumbers = new Array(byteCharacters.length)
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i)
+            }
+            const byteArray = new Uint8Array(byteNumbers)
+            const blob = new Blob([byteArray], { type: 'application/pdf' })
+
+            const fileName = `pdfs/${docId}_v${novaVersao}.pdf`
+
+            const { error: uploadError } = await supabase.storage
+              .from('rh_files')
+              .upload(fileName, blob, { contentType: 'application/pdf', upsert: true })
+
+            if (!uploadError) {
+              const {
+                data: { publicUrl: url },
+              } = supabase.storage.from('rh_files').getPublicUrl(fileName)
+              publicUrl = url
+              await supabase
+                .from('documento_gerado')
+                .update({ arquivo_pdf_url: publicUrl })
+                .eq('id', docId)
+            }
+          }
+        } catch (e) {
+          console.error('Falha ao exportar PDF:', e)
+        }
+
+        const { error: versaoError } = await supabase.from('documento_versao').insert({
+          documento_id: docId,
+          versao: novaVersao,
+          arquivo_pdf_url: publicUrl,
+          dados_snapshot: payload,
           alterado_por_usuario_id: user.id,
         })
-        .select('id')
-        .single()
 
-      if (mvError || !newMv) {
-        toast({
-          title: 'Erro de Modelo',
-          description: 'Não foi possível resolver a versão do modelo selecionado.',
-          variant: 'destructive',
-        })
-        return
+        if (versaoError) throw versaoError
+
+        toast({ title: 'Sucesso', description: 'Documento salvo com sucesso.' })
+        setIsOpen(false)
+        fetchData()
       }
-      modeloVersao = newMv
-    }
-
-    const payload: any = {
-      modelo_id: template.id,
-      modelo_versao_id: modeloVersao.id,
-      empresa_id: empresa.id,
-      colaborador_id: col?.id,
-      cargo_id: col?.cargo_id,
-      titulo: formData.title,
-      tipo_documento: template.tipo_documento,
-      status: 'finalizado',
-      dados_preenchidos: { content: formData.content, data_curso: formData.data_curso },
-      responsavel_empresa_nome: empresa.nome_responsavel,
-      responsavel_empresa_assinatura_url: empresa.assinatura_responsavel_url,
-      testemunha_1_nome: t1?.nome || '',
-      testemunha_1_cpf: t1?.cpf || '',
-      testemunha_1_assinatura_url: t1?.assinatura_url || null,
-      testemunha_2_nome: t2?.nome || '',
-      testemunha_2_cpf: t2?.cpf || '',
-      testemunha_2_assinatura_url: t2?.assinatura_url || null,
-      assinatura_colaborador_url: col?.assinatura_url || null,
-      campos_editaveis_pdf: {},
-      updated_by: user.id,
-    }
-
-    let docId = formData.id
-    let novaVersao = 1
-
-    if (docId) {
-      novaVersao = (formData.versao_atual || 1) + 1
-      payload.versao_atual = novaVersao
-      const { error: updateError } = await supabase
-        .from('documento_gerado')
-        .update(payload)
-        .eq('id', docId)
-
-      if (updateError) {
-        toast({
-          title: 'Erro ao atualizar documento',
-          description: updateError.message,
-          variant: 'destructive',
-        })
-        return
-      }
-      logAudit('documento_gerado', docId, 'update', user.id)
-    } else {
-      payload.created_by = user.id
-      payload.versao_atual = 1
-      const { data, error } = await supabase
-        .from('documento_gerado')
-        .insert(payload)
-        .select()
-        .single()
-
-      if (error) {
-        toast({
-          title: 'Erro ao criar documento',
-          description: error.message,
-          variant: 'destructive',
-        })
-        return
-      }
-
-      if (data) {
-        docId = data.id
-        logAudit('documento_gerado', docId, 'create', user.id)
-      }
-    }
-
-    if (docId) {
-      const { error: versaoError } = await supabase.from('documento_versao').insert({
-        documento_id: docId,
-        versao: novaVersao,
-        arquivo_pdf_url: '',
-        dados_snapshot: payload,
-        alterado_por_usuario_id: user.id,
-      })
-
-      if (versaoError) {
-        toast({
-          title: 'Erro ao salvar versão',
-          description: versaoError.message,
-          variant: 'destructive',
-        })
-        return
-      }
-
-      toast({ title: 'Sucesso', description: 'Documento salvo com sucesso.' })
-      setIsOpen(false)
-      fetchData()
-    } else {
+    } catch (error: any) {
       toast({
-        title: 'Erro',
-        description: 'Falha ao obter o ID do documento.',
+        title: 'Erro ao salvar documento',
+        description: error.message,
         variant: 'destructive',
       })
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -439,17 +518,66 @@ export default function Documents() {
             .update({ arquivo_pdf_url: publicUrl })
             .eq('documento_id', doc.id)
             .eq('versao', doc.versao_atual)
-        }
 
-        const a = document.createElement('a')
-        a.href = resDataUri
-        a.download = `${doc.titulo}.pdf`
-        a.click()
+          window.open(publicUrl, '_blank')
+        } else {
+          const a = document.createElement('a')
+          a.href = resDataUri
+          a.download = `${doc.titulo}.pdf`
+          a.click()
+        }
         if (user) logAudit('documento_gerado', doc.id, 'export', user.id)
+        fetchData()
       }
     } catch (e) {
       toast({ title: 'Erro', description: 'Falha ao exportar PDF.', variant: 'destructive' })
     }
+  }
+
+  const handleDownload = (doc: any) => {
+    if (doc.arquivo_pdf_url) {
+      window.open(doc.arquivo_pdf_url, '_blank')
+    } else {
+      handleExportPDF(doc)
+    }
+  }
+
+  const toggleDocSelection = (id: string) => {
+    setSelectedDocs((prev) =>
+      prev.includes(id) ? prev.filter((docId) => docId !== id) : [...prev, id],
+    )
+  }
+
+  const toggleAllDocs = () => {
+    if (selectedDocs.length === documents.length) {
+      setSelectedDocs([])
+    } else {
+      setSelectedDocs(documents.map((d) => d.id))
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (docToDelete) {
+      const { error } = await supabase.from('documento_gerado').delete().eq('id', docToDelete)
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      } else {
+        toast({ title: 'Sucesso', description: 'Documento excluído.' })
+        if (user) logAudit('documento_gerado', docToDelete, 'delete', user.id)
+        fetchData()
+      }
+      setDocToDelete(null)
+    } else if (selectedDocs.length > 0) {
+      const { error } = await supabase.from('documento_gerado').delete().in('id', selectedDocs)
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      } else {
+        toast({ title: 'Sucesso', description: 'Documentos excluídos.' })
+        setSelectedDocs([])
+        fetchData()
+      }
+    }
+    setDeleteConfirmOpen(false)
   }
 
   const selTemplate = templates.find((t) => t.id === formData.template_id)
@@ -485,25 +613,38 @@ export default function Documents() {
             Geração dinâmica com preenchimento via Template Engine
           </p>
         </div>
-        <Button
-          disabled={templates.length === 0 || employees.length === 0}
-          onClick={() => {
-            setFormData({
-              id: '',
-              template_id: '',
-              colaborador_id: '',
-              title: '',
-              content: '',
-              t1_id: '',
-              t2_id: '',
-              data_curso: '',
-              versao_atual: 1,
-            })
-            setIsOpen(true)
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" /> Gerar Documento
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedDocs.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDocToDelete(null)
+                setDeleteConfirmOpen(true)
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir ({selectedDocs.length})
+            </Button>
+          )}
+          <Button
+            disabled={templates.length === 0 || employees.length === 0}
+            onClick={() => {
+              setFormData({
+                id: '',
+                template_id: '',
+                colaborador_id: '',
+                title: '',
+                content: '',
+                t1_id: '',
+                t2_id: '',
+                data_curso: '',
+                versao_atual: 1,
+              })
+              setIsOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Gerar Documento
+          </Button>
+        </div>
       </div>
 
       {(templates.length === 0 || employees.length === 0) && (
@@ -522,15 +663,29 @@ export default function Documents() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
+                <TableHead className="w-12 text-center">
+                  <Checkbox
+                    checked={documents.length > 0 && selectedDocs.length === documents.length}
+                    onCheckedChange={toggleAllDocs}
+                    aria-label="Selecionar todos"
+                  />
+                </TableHead>
                 <TableHead>Título</TableHead>
                 <TableHead>Colaborador</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Exportar</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {documents.map((d) => (
                 <TableRow key={d.id}>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={selectedDocs.includes(d.id)}
+                      onCheckedChange={() => toggleDocSelection(d.id)}
+                      aria-label={`Selecionar ${d.titulo}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                     <FileText className="h-4 w-4 inline mr-2 text-primary" /> {d.titulo}
                   </TableCell>
@@ -545,17 +700,54 @@ export default function Documents() {
                       <Button variant="ghost" size="icon" onClick={() => handleEditDocument(d)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleExportPDF(d)}>
-                        <Download className="h-4 w-4 mr-2" /> PDF
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          setDocToDelete(d.id)
+                          setDeleteConfirmOpen(true)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(d)}>
+                        <Download className="h-4 w-4 mr-2" /> Abrir PDF
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {documents.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Nenhum documento gerado encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja excluir{' '}
+              {docToDelete ? 'este documento' : `estes ${selectedDocs.length} documentos`}? Esta
+              ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl">
@@ -694,10 +886,18 @@ export default function Documents() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
+            <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isGenerating}>
               Cancelar
             </Button>
-            <Button onClick={handleGenerate}>Salvar Documento Final</Button>
+            <Button onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando...
+                </>
+              ) : (
+                'Salvar Documento Final'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
