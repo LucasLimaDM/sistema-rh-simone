@@ -30,6 +30,7 @@ import {
 import { Shield, User as UserIcon, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
+import { maskCPF } from '@/lib/utils'
 
 export default function Settings() {
   const { user } = useAuth()
@@ -40,7 +41,7 @@ export default function Settings() {
     id: '',
     nome_completo: '',
     email: '',
-    tipo_usuario: 'Colaborador',
+    tipo_usuario: 'Usuario',
     cpf: '',
     assinatura_url: '',
   })
@@ -197,8 +198,8 @@ export default function Settings() {
               <Label>CPF (Documentos Oficiais)</Label>
               <Input
                 value={formData.cpf}
-                onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                placeholder="000.000.000-00"
+                onChange={(e) => setFormData({ ...formData, cpf: maskCPF(e.target.value) })}
+                placeholder=""
               />
             </div>
             <div className="space-y-2">
@@ -211,9 +212,8 @@ export default function Settings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Colaborador">Colaborador</SelectItem>
+                  <SelectItem value="Usuario">Usuário</SelectItem>
                   <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Coordenadora">Coordenadora</SelectItem>
                 </SelectContent>
               </Select>
             </div>

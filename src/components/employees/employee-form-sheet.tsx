@@ -271,6 +271,7 @@ export function EmployeeFormSheet({
                 <Input
                   value={data.cpf}
                   onChange={(e) => setData({ ...data, cpf: maskCPF(e.target.value) })}
+                  placeholder=""
                 />
               </div>
               <div className="space-y-1.5">
@@ -278,17 +279,23 @@ export function EmployeeFormSheet({
                 <Input
                   value={data.cnpj}
                   onChange={(e) => setData({ ...data, cnpj: maskCNPJ(e.target.value) })}
+                  placeholder=""
                 />
               </div>
               <div className="space-y-1.5">
                 <Label>RG</Label>
-                <Input value={data.rg} onChange={(e) => setData({ ...data, rg: e.target.value })} />
+                <Input
+                  value={data.rg}
+                  onChange={(e) => setData({ ...data, rg: e.target.value })}
+                  placeholder=""
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Telefone</Label>
                 <Input
                   value={data.telefone}
                   onChange={(e) => setData({ ...data, telefone: maskPhone(e.target.value) })}
+                  placeholder=""
                 />
               </div>
               <div className="space-y-1.5">

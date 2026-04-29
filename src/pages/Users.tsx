@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Trash2, Shield, User as UserIcon } from 'lucide-react'
+import { Plus, Trash2, Edit2, Shield, User as UserIcon } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import {
   Dialog,
@@ -36,7 +36,20 @@ export default function Users() {
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [newUserData, setNewUserData] = useState({ name: '', email: '', role: 'Colaborador' })
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'Usuario',
+  })
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editUserData, setEditUserData] = useState({
+    id: '',
+    name: '',
+    email: '',
+    role: 'Usuario',
+    password: '',
+  })
 
   const fetchProfiles = async () => {
     const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
@@ -61,8 +74,36 @@ export default function Users() {
     fetchProfiles()
   }
 
+  const handleEditUser = async () => {
+    if (!editUserData.name || !editUserData.email) return
+    const payload: any = {
+      nome_completo: editUserData.name,
+      email: editUserData.email,
+      tipo_usuario: editUserData.role,
+    }
+
+    const { error } = await supabase
+      .from('usuario_sistema')
+      .update(payload)
+      .eq('id', editUserData.id)
+    if (error) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Usuário atualizado' })
+      setIsEditOpen(false)
+      fetchProfiles()
+    }
+  }
+
   const handleAddUser = async () => {
     if (!newUserData.name || !newUserData.email) return
+    if (!newUserData.password) {
+      return toast({
+        title: 'Atenção',
+        description: 'A senha é obrigatória',
+        variant: 'destructive',
+      })
+    }
     const { data, error } = await supabase.functions.invoke('invite-user', { body: newUserData })
     if (error || data?.error)
       toast({
@@ -73,7 +114,7 @@ export default function Users() {
     else {
       toast({ title: 'Usuário adicionado com sucesso' })
       setIsAddOpen(false)
-      setNewUserData({ name: '', email: '', role: 'Colaborador' })
+      setNewUserData({ name: '', email: '', password: '', role: 'Usuario' })
       fetchProfiles()
     }
   }
@@ -120,14 +161,32 @@ export default function Users() {
                   </TableCell>
                   <TableCell className="text-right">
                     {isAdmin && p.id !== user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(p.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditUserData({
+                              id: p.id,
+                              name: p.nome_completo,
+                              email: p.email,
+                              role: p.tipo_usuario,
+                              password: '',
+                            })
+                            setIsEditOpen(true)
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(p.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -168,19 +227,80 @@ export default function Users() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Colaborador">Colaborador</SelectItem>
+                  <SelectItem value="Usuario">Usuário</SelectItem>
                   <SelectItem value="Admin">Administrador</SelectItem>
-                  <SelectItem value="Coordenadora">Coordenadora</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Senha Temporária</Label>
+              <Input
+                value={newUserData.password}
+                type="password"
+                onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAddUser} disabled={!newUserData.name || !newUserData.email}>
-              Adicionar e Enviar E-mail
+            <Button
+              onClick={handleAddUser}
+              disabled={!newUserData.name || !newUserData.email || !newUserData.password}
+            >
+              Salvar Usuário
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Membro</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input
+                value={editUserData.name}
+                onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                value={editUserData.email}
+                type="email"
+                onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Perfil</Label>
+              <Select
+                value={editUserData.role}
+                onValueChange={(v) => setEditUserData({ ...editUserData, role: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Usuario">Usuário</SelectItem>
+                  <SelectItem value="Admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Nota: Para alterar a senha, acesse Configurações.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditUser} disabled={!editUserData.name || !editUserData.email}>
+              Salvar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>

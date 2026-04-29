@@ -12,6 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const maskCPF = (v: string) => {
+  if (!v) return ''
   let value = v.replace(/\D/g, '')
   value = value.replace(/(\d{3})(\d)/, '$1.$2')
   value = value.replace(/(\d{3})(\d)/, '$1.$2')
@@ -45,6 +46,7 @@ export const maskIM = (v: string) => {
 }
 
 export const maskPhone = (v: string) => {
+  if (!v) return ''
   let value = v.replace(/\D/g, '')
   value = value.replace(/^(\d{2})(\d)/, '($1) $2')
   value = value.replace(/(\d{4,5})(\d{4})$/, '$1-$2')
