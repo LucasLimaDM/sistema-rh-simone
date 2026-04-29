@@ -220,10 +220,13 @@ export default function Templates() {
         <AlertCircle className="h-4 w-4 text-orange-600" />
         <AlertTitle>Tags Inteligentes Disponíveis</AlertTitle>
         <AlertDescription className="text-xs mt-2 font-mono space-y-1">
-          <p>{`{{NOME_EMPRESA}}, {{CNPJ_EMPRESA}}, {{RESPONSAVEL_EMPRESA}}`}</p>
-          <p>{`{{NOME_COLABORADOR}}, {{CPF_COLABORADOR}}, {{RG_COLABORADOR}}`}</p>
-          <p>{`{{CARGO_NOME}}, {{CARGO_DESCRICAO}}, {{VALOR_HORA}}, {{VALOR_DIARIA}}`}</p>
-          <p>As testemunhas e assinaturas de contratos são adicionadas automaticamente no PDF.</p>
+          <p>{`{{CONTRATANTE_RAZAO_SOCIAL}}, {{CONTRATANTE_CNPJ}}, {{CONTRATANTE_ENDERECO}}, {{CONTRATANTE_CIDADE}}, {{CONTRATANTE_UF}}, {{CONTRATANTE_IE}}`}</p>
+          <p>{`{{CONTRATADA_NOME}}, {{CONTRATADA_CPF_CNPJ}}, {{CONTRATADA_RG}}, {{CONTRATADA_ENDERECO}}, {{CONTRATADA_BAIRRO}}, {{CONTRATADA_CIDADE}}, {{CONTRATADA_UF}}, {{CONTRATADA_CEP}}`}</p>
+          <p>{`{{CARGO_NOME}}, {{CARGO_DESCRICAO}}, {{VALOR_HORA}}, {{VALOR_DIARIA}}, {{DATA_CURSO}}`}</p>
+          <p className="mt-2 font-sans text-muted-foreground">
+            As testemunhas e assinaturas são adicionadas automaticamente no PDF (tags antigas como{' '}
+            {'{{NOME_EMPRESA}}'} continuam funcionando).
+          </p>
         </AlertDescription>
       </Alert>
 

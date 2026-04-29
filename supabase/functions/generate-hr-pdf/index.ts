@@ -98,7 +98,13 @@ Deno.serve(async (req) => {
 
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
+
       doc.line(20, y, 90, y)
+      if (testemunhas?.[0]?.assinatura) {
+        try {
+          doc.addImage(testemunhas[0].assinatura, 'PNG', 30, y - 15, 40, 14)
+        } catch (e) {}
+      }
       if (editavel) {
         try {
           const t1Nome = new AcroFormTextField()
@@ -114,10 +120,15 @@ Deno.serve(async (req) => {
         } catch (e) {}
       } else {
         doc.text(testemunhas?.[0]?.nome || 'Testemunha 1', 20, y + 5)
-        doc.text(testemunhas?.[0]?.cpf || 'CPF:', 20, y + 10)
+        doc.text(testemunhas?.[0]?.cpf ? `CPF: ${testemunhas?.[0]?.cpf}` : 'CPF:', 20, y + 10)
       }
 
       doc.line(110, y, 180, y)
+      if (testemunhas?.[1]?.assinatura) {
+        try {
+          doc.addImage(testemunhas[1].assinatura, 'PNG', 120, y - 15, 40, 14)
+        } catch (e) {}
+      }
       if (editavel) {
         try {
           const t2Nome = new AcroFormTextField()
@@ -133,7 +144,7 @@ Deno.serve(async (req) => {
         } catch (e) {}
       } else {
         doc.text(testemunhas?.[1]?.nome || 'Testemunha 2', 110, y + 5)
-        doc.text(testemunhas?.[1]?.cpf || 'CPF:', 110, y + 10)
+        doc.text(testemunhas?.[1]?.cpf ? `CPF: ${testemunhas?.[1]?.cpf}` : 'CPF:', 110, y + 10)
       }
     } else {
       if (y > 240) {

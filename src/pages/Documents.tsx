@@ -42,6 +42,7 @@ export default function Documents() {
   const [templates, setTemplates] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [empresa, setEmpresa] = useState<any>(null)
+  const [witnesses, setWitnesses] = useState<any[]>([])
 
   const [isOpen, setIsOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -50,10 +51,8 @@ export default function Documents() {
     colaborador_id: '',
     title: '',
     content: '',
-    t1_nome: '',
-    t1_cpf: '',
-    t2_nome: '',
-    t2_cpf: '',
+    t1_id: '',
+    t2_id: '',
     data_curso: '',
     versao_atual: 1,
   })
@@ -67,7 +66,7 @@ export default function Documents() {
       .single()
     if (emp) {
       setEmpresa(emp)
-      const [docs, temps, cols] = await Promise.all([
+      const [docs, temps, cols, testData] = await Promise.all([
         supabase
           .from('documento_gerado')
           .select('*, colaborador(nome_completo)')
@@ -75,10 +74,15 @@ export default function Documents() {
           .order('created_at', { ascending: false }),
         supabase.from('modelo').select('*').eq('empresa_id', emp.id),
         supabase.from('colaborador').select('*').eq('empresa_id', emp.id),
+        supabase
+          .from('testemunhas' as any)
+          .select('*')
+          .eq('ativo', true),
       ])
       if (docs.data) setDocuments(docs.data)
       if (temps.data) setTemplates(temps.data)
       if (cols.data) setEmployees(cols.data)
+      if (testData.data) setWitnesses(testData.data)
     }
   }
 
@@ -92,22 +96,48 @@ export default function Documents() {
     let content = template?.campos_config?.content || ''
 
     if (col && empresa) {
+      const empEnd = empresa.endereco || {}
+      const endEmpresaCompleto = `${empEnd.logradouro || ''}, ${empEnd.numero || ''} ${empEnd.complemento ? '- ' + empEnd.complemento : ''} - ${empEnd.bairro || ''} - ${empEnd.cidade || ''}/${empEnd.uf || ''} - CEP: ${empEnd.cep || ''}`
+
+      const colEnd = col.endereco || {}
+      const endColCompleto = `${colEnd.logradouro || ''}, ${colEnd.numero || ''} ${colEnd.complemento ? '- ' + colEnd.complemento : ''} - ${colEnd.bairro || ''} - ${colEnd.cidade || ''}/${colEnd.uf || ''} - CEP: ${colEnd.cep || ''}`
+
       content = content
-        .replace(/{{NOME_EMPRESA}}/g, empresa.razao_social)
-        .replace(/{{CNPJ_EMPRESA}}/g, empresa.cnpj)
-        .replace(/{{RESPONSAVEL_EMPRESA}}/g, empresa.nome_responsavel)
-        .replace(/{{NOME_COLABORADOR}}/g, col.nome_completo)
-        .replace(/{{CPF_COLABORADOR}}/g, col.cpf)
+        .replace(/{{NOME_EMPRESA}}/g, empresa.razao_social || '')
+        .replace(/{{CONTRATANTE_RAZAO_SOCIAL}}/g, empresa.razao_social || '')
+        .replace(/{{CNPJ_EMPRESA}}/g, empresa.cnpj || '')
+        .replace(/{{CONTRATANTE_CNPJ}}/g, empresa.cnpj || '')
+        .replace(/{{RESPONSAVEL_EMPRESA}}/g, empresa.nome_responsavel || '')
+        .replace(
+          /{{CONTRATANTE_ENDERECO}}/g,
+          endEmpresaCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '',
+        )
+        .replace(/{{CONTRATANTE_CIDADE}}/g, empEnd.cidade || '')
+        .replace(/{{CONTRATANTE_UF}}/g, empEnd.uf || '')
+        .replace(/{{CONTRATANTE_IE}}/g, empresa.inscricao_estadual || '')
+
+        .replace(/{{NOME_COLABORADOR}}/g, col.nome_completo || '')
+        .replace(/{{CONTRATADA_NOME}}/g, col.nome_completo || '')
+        .replace(/{{CPF_COLABORADOR}}/g, col.cpf || '')
+        .replace(/{{CONTRATADA_CPF_CNPJ}}/g, col.cnpj || col.cpf || '')
         .replace(/{{RG_COLABORADOR}}/g, col.rg || '')
+        .replace(/{{CONTRATADA_RG}}/g, col.rg || '')
+        .replace(/{{CONTRATADA_ENDERECO}}/g, endColCompleto.replace(/^[,\s-]+|[,\s-]+$/g, '') || '')
+        .replace(/{{CONTRATADA_BAIRRO}}/g, colEnd.bairro || '')
+        .replace(/{{CONTRATADA_CIDADE}}/g, colEnd.cidade || '')
+        .replace(/{{CONTRATADA_UF}}/g, colEnd.uf || '')
+        .replace(/{{CONTRATADA_CEP}}/g, colEnd.cep || '')
+
         .replace(/{{CARGO_NOME}}/g, col.cargo_nome_snapshot || '')
         .replace(/{{CARGO_DESCRICAO}}/g, col.cargo_descricao_snapshot?.texto || '')
-        .replace(/{{VALOR_HORA}}/g, col.valor_hora_snapshot || '')
-        .replace(/{{VALOR_DIARIA}}/g, col.valor_diaria_snapshot || '')
+        .replace(/{{VALOR_HORA}}/g, col.valor_hora_snapshot?.toString() || '')
+        .replace(/{{VALOR_DIARIA}}/g, col.valor_diaria_snapshot?.toString() || '')
         .replace(
           /{{DATA_CURSO}}/g,
           dataCurso ? new Date(dataCurso).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
         )
     }
+
     setFormData((prev) => ({
       ...prev,
       template_id: tempId,
@@ -128,17 +158,14 @@ export default function Documents() {
       toast({ title: 'Assinatura da empresa ausente', variant: 'destructive' })
       return
     }
-    if (!col?.assinatura_url) {
-      toast({ title: 'Assinatura do colaborador ausente', variant: 'destructive' })
-      return
-    }
-    if (
-      isContrato &&
-      (!formData.t1_nome || !formData.t1_cpf || !formData.t2_nome || !formData.t2_cpf)
-    ) {
+
+    if (isContrato && (!formData.t1_id || !formData.t2_id)) {
       toast({ title: 'Testemunhas incompletas', variant: 'destructive' })
       return
     }
+
+    const t1 = witnesses.find((w) => w.id === formData.t1_id)
+    const t2 = witnesses.find((w) => w.id === formData.t2_id)
 
     const payload: any = {
       modelo_id: template.id,
@@ -152,11 +179,13 @@ export default function Documents() {
       dados_preenchidos: { content: formData.content, data_curso: formData.data_curso },
       responsavel_empresa_nome: empresa.nome_responsavel,
       responsavel_empresa_assinatura_url: empresa.assinatura_responsavel_url,
-      testemunha_1_nome: formData.t1_nome,
-      testemunha_1_cpf: formData.t1_cpf,
-      testemunha_2_nome: formData.t2_nome,
-      testemunha_2_cpf: formData.t2_cpf,
-      assinatura_colaborador_url: col?.assinatura_url,
+      testemunha_1_nome: t1?.nome || '',
+      testemunha_1_cpf: t1?.cpf || '',
+      testemunha_1_assinatura_url: t1?.assinatura_url || null,
+      testemunha_2_nome: t2?.nome || '',
+      testemunha_2_cpf: t2?.cpf || '',
+      testemunha_2_assinatura_url: t2?.assinatura_url || null,
+      assinatura_colaborador_url: col?.assinatura_url || null,
       campos_editaveis_pdf: {},
       updated_by: user.id,
     }
@@ -198,16 +227,17 @@ export default function Documents() {
   }
 
   const handleEditDocument = (doc: any) => {
+    const t1 = witnesses.find((w) => w.cpf === doc.testemunha_1_cpf)
+    const t2 = witnesses.find((w) => w.cpf === doc.testemunha_2_cpf)
+
     setFormData({
       id: doc.id,
       template_id: doc.modelo_id,
       colaborador_id: doc.colaborador_id || '',
       title: doc.titulo,
       content: doc.dados_preenchidos?.content || '',
-      t1_nome: doc.testemunha_1_nome || '',
-      t1_cpf: doc.testemunha_1_cpf || '',
-      t2_nome: doc.testemunha_2_nome || '',
-      t2_cpf: doc.testemunha_2_cpf || '',
+      t1_id: t1?.id || '',
+      t2_id: t2?.id || '',
       data_curso: doc.dados_preenchidos?.data_curso || '',
       versao_atual: doc.versao_atual,
     })
@@ -234,8 +264,16 @@ export default function Documents() {
       empresa: emp,
       colaborador: col,
       testemunhas: [
-        { nome: doc.testemunha_1_nome, cpf: doc.testemunha_1_cpf },
-        { nome: doc.testemunha_2_nome, cpf: doc.testemunha_2_cpf },
+        {
+          nome: doc.testemunha_1_nome,
+          cpf: doc.testemunha_1_cpf,
+          assinatura: doc.testemunha_1_assinatura_url,
+        },
+        {
+          nome: doc.testemunha_2_nome,
+          cpf: doc.testemunha_2_cpf,
+          assinatura: doc.testemunha_2_assinatura_url,
+        },
       ],
       assinaturas: {
         responsavel: doc.responsavel_empresa_assinatura_url,
@@ -303,8 +341,7 @@ export default function Documents() {
     formData.template_id &&
     formData.colaborador_id &&
     !missingCompanySig &&
-    !missingColSig &&
-    (!isContrato || (formData.t1_nome && formData.t1_cpf && formData.t2_nome && formData.t2_cpf))
+    (!isContrato || (formData.t1_id && formData.t2_id))
 
   if (!empresa) {
     return (
@@ -339,10 +376,8 @@ export default function Documents() {
               colaborador_id: '',
               title: '',
               content: '',
-              t1_nome: '',
-              t1_cpf: '',
-              t2_nome: '',
-              t2_cpf: '',
+              t1_id: '',
+              t2_id: '',
               data_curso: '',
               versao_atual: 1,
             })
@@ -469,53 +504,64 @@ export default function Documents() {
               )}
 
               {isContrato && (
-                <div className="grid grid-cols-2 gap-2 p-3 bg-muted/30 border rounded mt-2">
+                <div className="grid grid-cols-2 gap-4 p-3 bg-muted/30 border rounded mt-2">
                   <p className="col-span-2 text-xs font-bold mb-1">Testemunhas Obrigatórias</p>
                   <div className="space-y-1">
-                    <Label className="text-[10px]">T1 Nome</Label>
-                    <Input
-                      className="h-7 text-xs"
-                      value={formData.t1_nome}
-                      onChange={(e) => setFormData({ ...formData, t1_nome: e.target.value })}
-                    />
+                    <Label className="text-[10px]">Testemunha 1</Label>
+                    <Select
+                      value={formData.t1_id}
+                      onValueChange={(v) => setFormData({ ...formData, t1_id: v })}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione a testemunha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {witnesses.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.nome} ({w.cpf})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px]">T1 CPF</Label>
-                    <Input
-                      className="h-7 text-xs"
-                      value={formData.t1_cpf}
-                      onChange={(e) => setFormData({ ...formData, t1_cpf: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">T2 Nome</Label>
-                    <Input
-                      className="h-7 text-xs"
-                      value={formData.t2_nome}
-                      onChange={(e) => setFormData({ ...formData, t2_nome: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">T2 CPF</Label>
-                    <Input
-                      className="h-7 text-xs"
-                      value={formData.t2_cpf}
-                      onChange={(e) => setFormData({ ...formData, t2_cpf: e.target.value })}
-                    />
+                    <Label className="text-[10px]">Testemunha 2</Label>
+                    <Select
+                      value={formData.t2_id}
+                      onValueChange={(v) => setFormData({ ...formData, t2_id: v })}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Selecione a testemunha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {witnesses.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.nome} ({w.cpf})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
 
-              {(missingCompanySig || missingColSig) && (
+              {missingCompanySig && (
                 <Alert variant="destructive" className="mt-4 text-xs">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Assinaturas Obrigatórias Ausentes</AlertTitle>
+                  <AlertTitle>Assinatura Obrigatória Ausente</AlertTitle>
                   <AlertDescription>
-                    {missingCompanySig && (
-                      <p>A empresa não possui assinatura do responsável configurada.</p>
-                    )}
-                    {missingColSig && <p>O colaborador não possui assinatura configurada.</p>}
-                    Configure as assinaturas antes de gerar o documento.
+                    A empresa não possui assinatura do responsável configurada. Configure as
+                    assinaturas antes de gerar o documento.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {missingColSig && (
+                <Alert className="mt-4 text-xs bg-orange-50 border-orange-200 text-orange-800">
+                  <AlertCircle className="h-4 w-4 text-orange-600" />
+                  <AlertTitle>Aviso</AlertTitle>
+                  <AlertDescription>
+                    O colaborador não possui assinatura. O documento poderá ser gerado para
+                    assinatura física.
                   </AlertDescription>
                 </Alert>
               )}
