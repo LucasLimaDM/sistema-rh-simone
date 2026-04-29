@@ -47,8 +47,8 @@ BEGIN
           emp_record.id,
           v_empresa_id,
           CASE 
-            WHEN emp_record.contract_type IN ('PJ', 'LTDA', 'MEI') THEN 'PJ'
-            ELSE 'PF'
+            WHEN lower(COALESCE(emp_record.contract_type, '')) IN ('pj', 'ltda', 'mei', 'pessoa jurídica') THEN 'pj'
+            ELSE 'pf'
           END,
           emp_record.name,
           COALESCE(emp_record.cpf, ''),
