@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Trash2, ExternalLink, UploadCloud } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
+import { maskCPF, maskCNPJ, maskPhone } from '@/lib/utils'
 
 interface DocState {
   expiry_date: string
@@ -245,14 +246,6 @@ export function EmployeeFormSheet({
     setOpen(false)
   }
 
-  const maskPhone = (val: string) =>
-    val.replace(/\D/g, '').replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
-  const maskCPF = (val: string) =>
-    val
-      .replace(/\D/g, '')
-      .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      .slice(0, 14)
-
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent className="sm:max-w-xl w-full overflow-y-auto p-0 flex flex-col">
@@ -278,6 +271,13 @@ export function EmployeeFormSheet({
                 <Input
                   value={data.cpf}
                   onChange={(e) => setData({ ...data, cpf: maskCPF(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>CNPJ</Label>
+                <Input
+                  value={data.cnpj}
+                  onChange={(e) => setData({ ...data, cnpj: maskCNPJ(e.target.value) })}
                 />
               </div>
               <div className="space-y-1.5">

@@ -1177,6 +1177,7 @@ export type Database = {
           etapa: string
           id: string
           lead_id: string
+          user_id: string | null
         }
         Insert: {
           data_entrada?: string
@@ -1184,6 +1185,7 @@ export type Database = {
           etapa: string
           id?: string
           lead_id: string
+          user_id?: string | null
         }
         Update: {
           data_entrada?: string
@@ -1191,6 +1193,7 @@ export type Database = {
           etapa?: string
           id?: string
           lead_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -2528,6 +2531,7 @@ export const Constants = {
 //   etapa: text (not null)
 //   data_entrada: timestamp with time zone (not null, default: now())
 //   data_saida: timestamp with time zone (nullable)
+//   user_id: uuid (nullable)
 // Table: hr_document_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   title: text (not null)
@@ -2851,6 +2855,7 @@ export const Constants = {
 // Table: historico_etapas
 //   FOREIGN KEY historico_etapas_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY historico_etapas_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY historico_etapas_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: hr_document_templates
 //   PRIMARY KEY hr_document_templates_pkey: PRIMARY KEY (id)
 // Table: hr_generated_documents

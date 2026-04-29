@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Building2, Plus, Edit2, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
+import { maskCNPJ, maskCPF, maskIE, maskIM } from '@/lib/utils'
 
 export default function Companies() {
   const { user } = useAuth()
@@ -34,6 +35,7 @@ export default function Companies() {
     nome_fantasia: '',
     cnpj: '',
     inscricao_estadual: '',
+    inscricao_municipal: '',
     nome_responsavel: '',
     cpf_responsavel: '',
     logo_url: '',
@@ -56,6 +58,7 @@ export default function Companies() {
       nome_fantasia: formData.nome_fantasia,
       cnpj: formData.cnpj,
       inscricao_estadual: formData.inscricao_estadual || null,
+      inscricao_municipal: formData.inscricao_municipal || null,
       nome_responsavel: formData.nome_responsavel,
       cpf_responsavel: formData.cpf_responsavel,
       logo_url: formData.logo_url || null,
@@ -121,6 +124,7 @@ export default function Companies() {
               nome_fantasia: '',
               cnpj: '',
               inscricao_estadual: '',
+              inscricao_municipal: '',
               nome_responsavel: '',
               cpf_responsavel: '',
               logo_url: '',
@@ -203,14 +207,25 @@ export default function Companies() {
               <Label>CNPJ</Label>
               <Input
                 value={formData.cnpj}
-                onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
               />
             </div>
             <div className="space-y-2">
               <Label>Inscrição Estadual</Label>
               <Input
                 value={formData.inscricao_estadual}
-                onChange={(e) => setFormData({ ...formData, inscricao_estadual: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, inscricao_estadual: maskIE(e.target.value) })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Inscrição Municipal</Label>
+              <Input
+                value={formData.inscricao_municipal}
+                onChange={(e) =>
+                  setFormData({ ...formData, inscricao_municipal: maskIM(e.target.value) })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -224,7 +239,9 @@ export default function Companies() {
               <Label>CPF do Responsável</Label>
               <Input
                 value={formData.cpf_responsavel}
-                onChange={(e) => setFormData({ ...formData, cpf_responsavel: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, cpf_responsavel: maskCPF(e.target.value) })
+                }
               />
             </div>
 

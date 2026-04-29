@@ -113,7 +113,8 @@ Deno.serve(async (req: Request) => {
 
     etapas?.forEach((e) => {
       const leads = e.leads as any
-      const seller = (leads && sellerIdMap.get(leads.vendedor_id)) || 'Sistema'
+      const seller =
+        sellerMap.get(e.user_id) || (leads && sellerIdMap.get(leads.vendedor_id)) || 'Sistema'
       const cliente = leads?.empresa || 'Cliente Desconhecido'
       const stageName = stageMap.get(e.etapa) || 'Etapa Desconhecida'
 
