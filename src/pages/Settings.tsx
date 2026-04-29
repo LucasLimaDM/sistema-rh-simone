@@ -56,7 +56,7 @@ export default function Settings() {
   }, [])
 
   const handleSave = async () => {
-    if (newPassword && user?.id === formData.id) {
+    if (newPassword && (user?.id === formData.id || user?.email === formData.email)) {
       const { error: authError } = await supabase.auth.updateUser({ password: newPassword })
       if (authError) {
         toast({
@@ -217,7 +217,7 @@ export default function Settings() {
                 </SelectContent>
               </Select>
             </div>
-            {user?.id === formData.id && (
+            {(user?.id === formData.id || user?.email === formData.email) && (
               <div className="space-y-2">
                 <Label>Nova Senha (Opcional)</Label>
                 <Input

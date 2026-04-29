@@ -926,6 +926,7 @@ export type Database = {
           header_template: Json
           id: string
           inscricao_estadual: string | null
+          inscricao_municipal: string | null
           logo_url: string | null
           nome_fantasia: string
           nome_responsavel: string
@@ -942,6 +943,7 @@ export type Database = {
           header_template?: Json
           id?: string
           inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           logo_url?: string | null
           nome_fantasia: string
           nome_responsavel: string
@@ -958,6 +960,7 @@ export type Database = {
           header_template?: Json
           id?: string
           inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
           logo_url?: string | null
           nome_fantasia?: string
           nome_responsavel?: string
@@ -2475,6 +2478,7 @@ export const Constants = {
 //   ativa: boolean (not null, default: true)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   inscricao_municipal: text (nullable)
 // Table: followup_roteiro
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)

@@ -66,7 +66,27 @@ export default function Layout() {
   const [expiringDocs, setExpiringDocs] = useState<any[]>([])
 
   useEffect(() => {
-    if (user) {
+    if (user?.email) {
+      supabase
+        .from('hr_profiles')
+        .select('*')
+        .eq('email', user.email)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setProfile(data)
+          } else {
+            supabase
+              .from('usuario_sistema')
+              .select('*, name:nome_completo, role:tipo_usuario')
+              .eq('email', user.email)
+              .maybeSingle()
+              .then(({ data: sysData }) => {
+                if (sysData) setProfile(sysData)
+              })
+          }
+        })
+    } else if (user) {
       supabase
         .from('usuario_sistema')
         .select('*, name:nome_completo, role:tipo_usuario')

@@ -42,8 +42,10 @@ export default function Users() {
     const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
     if (data) setProfiles(data)
     if (user) {
-      const currentUserProfile = data?.find((p) => p.id === user.id)
-      setIsAdmin(currentUserProfile?.tipo_usuario === 'Admin')
+      const currentUserProfile = data?.find((p) => p.id === user.id || p.email === user.email)
+      setIsAdmin(
+        currentUserProfile?.tipo_usuario === 'Admin' || user.email === 'simone@primerpisos.com.br',
+      )
     }
   }
 
