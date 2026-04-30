@@ -809,7 +809,7 @@ export type Database = {
             foreignKeyName: 'employee_documents_employee_id_fkey'
             columns: ['employee_id']
             isOneToOne: false
-            referencedRelation: 'employees'
+            referencedRelation: 'colaborador'
             referencedColumns: ['id']
           },
         ]
@@ -1280,7 +1280,7 @@ export type Database = {
             foreignKeyName: 'hr_generated_documents_employee_id_fkey'
             columns: ['employee_id']
             isOneToOne: false
-            referencedRelation: 'employees'
+            referencedRelation: 'colaborador'
             referencedColumns: ['id']
           },
           {
@@ -1937,7 +1937,7 @@ export type Database = {
             foreignKeyName: 'time_tracks_employee_id_fkey'
             columns: ['employee_id']
             isOneToOne: false
-            referencedRelation: 'employees'
+            referencedRelation: 'colaborador'
             referencedColumns: ['id']
           },
         ]
@@ -2134,7 +2134,7 @@ export type Database = {
             foreignKeyName: 'work_scales_employee_id_fkey'
             columns: ['employee_id']
             isOneToOne: false
-            referencedRelation: 'employees'
+            referencedRelation: 'colaborador'
             referencedColumns: ['id']
           },
         ]
@@ -2869,7 +2869,7 @@ export const Constants = {
 //   FOREIGN KEY email_tracking_proposal_id_fkey: FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
 //   UNIQUE email_tracking_token_key: UNIQUE (token)
 // Table: employee_documents
-//   FOREIGN KEY employee_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   FOREIGN KEY employee_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
 //   PRIMARY KEY employee_documents_pkey: PRIMARY KEY (id)
 // Table: employees
 //   PRIMARY KEY employees_pkey: PRIMARY KEY (id)
@@ -2901,7 +2901,7 @@ export const Constants = {
 // Table: hr_document_templates
 //   PRIMARY KEY hr_document_templates_pkey: PRIMARY KEY (id)
 // Table: hr_generated_documents
-//   FOREIGN KEY hr_generated_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   FOREIGN KEY hr_generated_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
 //   PRIMARY KEY hr_generated_documents_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY hr_generated_documents_template_id_fkey: FOREIGN KEY (template_id) REFERENCES hr_document_templates(id) ON DELETE SET NULL
 // Table: hr_profiles
@@ -2952,7 +2952,7 @@ export const Constants = {
 // Table: testemunhas
 //   PRIMARY KEY testemunhas_pkey: PRIMARY KEY (id)
 // Table: time_tracks
-//   FOREIGN KEY time_tracks_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   FOREIGN KEY time_tracks_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
 //   PRIMARY KEY time_tracks_pkey: PRIMARY KEY (id)
 // Table: user_settings
 //   PRIMARY KEY user_settings_pkey: PRIMARY KEY (user_id)
@@ -2967,7 +2967,7 @@ export const Constants = {
 //   PRIMARY KEY whatsapp_templates_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY whatsapp_templates_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: work_scales
-//   FOREIGN KEY work_scales_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+//   FOREIGN KEY work_scales_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
 //   UNIQUE work_scales_employee_id_period_key: UNIQUE (employee_id, period)
 //   PRIMARY KEY work_scales_pkey: PRIMARY KEY (id)
 
