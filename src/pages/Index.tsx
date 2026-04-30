@@ -16,16 +16,16 @@ export default function Index() {
     const loadStats = async () => {
       const { count: emps } = await supabase
         .from('employees')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact' })
         .eq('company', company)
       const { count: docs } = await supabase
         .from('employee_documents')
-        .select('*, employees!inner(company)', { count: 'exact', head: true })
+        .select('id, employees!inner(company)', { count: 'exact' })
         .eq('employees.company', company)
         .lt('expiry_date', new Date().toISOString())
       const { count: docsExpiring } = await supabase
         .from('employee_documents')
-        .select('*, employees!inner(company)', { count: 'exact', head: true })
+        .select('id, employees!inner(company)', { count: 'exact' })
         .eq('employees.company', company)
         .gte('expiry_date', new Date().toISOString())
         .lt('expiry_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
