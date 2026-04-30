@@ -34,12 +34,13 @@ const chartConfig = {
   hours: { label: 'Horas Trab.', color: 'hsl(var(--chart-4))' },
 }
 
-export function CompliancePieChart() {
+export function CompliancePieChart({ data }: { data?: any[] }) {
+  const chartData = data && data.length > 0 ? data : pieData
   return (
     <ChartContainer config={chartConfig} className="h-[250px] w-full">
       <PieChart>
         <Pie
-          data={pieData}
+          data={chartData}
           dataKey="value"
           nameKey="name"
           innerRadius={60}
@@ -47,7 +48,7 @@ export function CompliancePieChart() {
           strokeWidth={2}
           paddingAngle={2}
         >
-          {pieData.map((entry, index) => (
+          {chartData.map((entry: any, index: number) => (
             <Cell key={`cell-${index}`} fill={entry.fill} />
           ))}
         </Pie>
@@ -57,10 +58,11 @@ export function CompliancePieChart() {
   )
 }
 
-export function HoursBarChart() {
+export function HoursBarChart({ data }: { data?: any[] }) {
+  const chartData = data && data.length > 0 ? data : barData
   return (
     <ChartContainer config={chartConfig} className="h-[250px] w-full">
-      <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />

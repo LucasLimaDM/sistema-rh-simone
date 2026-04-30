@@ -13,7 +13,7 @@
     "create-lead-webhook": 5,
     "schedule-visit": 3,
     "daily-report": 3,
-    "invite-user": 6,
-    "generate-hr-pdf": 3
+    "invite-user": 7,
+    "generate-hr-pdf": 4
   }
 }

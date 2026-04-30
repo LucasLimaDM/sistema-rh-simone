@@ -164,14 +164,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    const pdfDataUri = doc.output('datauristring')
-    return new Response(JSON.stringify({ pdfDataUri }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const pdfBuffer = doc.output('arraybuffer')
+    return new Response(pdfBuffer, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="documento.pdf"`,
+      },
     })
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })

@@ -372,7 +372,12 @@ export default function Documents() {
 
         try {
           const res = await supabase.functions.invoke('generate-hr-pdf', { body: pdfPayload })
-          if (res.data?.pdfDataUri) {
+          if (res.error) throw res.error
+
+          let blob: Blob | null = null
+          if (res.data instanceof Blob) {
+            blob = res.data
+          } else if (res.data?.pdfDataUri) {
             const resDataUri = res.data.pdfDataUri
             const base64Data = resDataUri.split(',')[1]
             const byteCharacters = atob(base64Data)
@@ -381,8 +386,10 @@ export default function Documents() {
               byteNumbers[i] = byteCharacters.charCodeAt(i)
             }
             const byteArray = new Uint8Array(byteNumbers)
-            const blob = new Blob([byteArray], { type: 'application/pdf' })
+            blob = new Blob([byteArray], { type: 'application/pdf' })
+          }
 
+          if (blob) {
             const fileName = `pdfs/${docId}_v${novaVersao}.pdf`
 
             const { error: uploadError } = await supabase.storage
@@ -488,7 +495,11 @@ export default function Documents() {
     try {
       const res = await supabase.functions.invoke('generate-hr-pdf', { body: payload })
       if (res.error) throw res.error
-      if (res.data?.pdfDataUri) {
+
+      let blob: Blob | null = null
+      if (res.data instanceof Blob) {
+        blob = res.data
+      } else if (res.data?.pdfDataUri) {
         const resDataUri = res.data.pdfDataUri
         const base64Data = resDataUri.split(',')[1]
         const byteCharacters = atob(base64Data)
@@ -497,8 +508,10 @@ export default function Documents() {
           byteNumbers[i] = byteCharacters.charCodeAt(i)
         }
         const byteArray = new Uint8Array(byteNumbers)
-        const blob = new Blob([byteArray], { type: 'application/pdf' })
+        blob = new Blob([byteArray], { type: 'application/pdf' })
+      }
 
+      if (blob) {
         const fileName = `pdfs/${doc.id}_v${doc.versao_atual}.pdf`
 
         const { error: uploadError } = await supabase.storage
@@ -521,10 +534,12 @@ export default function Documents() {
 
           window.open(publicUrl, '_blank')
         } else {
+          const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
-          a.href = resDataUri
+          a.href = url
           a.download = `${doc.titulo}.pdf`
           a.click()
+          URL.revokeObjectURL(url)
         }
         if (user) logAudit('documento_gerado', doc.id, 'export', user.id)
         fetchData()

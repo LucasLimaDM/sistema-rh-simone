@@ -4,38 +4,103 @@ import { AppContextType } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Users, FileWarning, Briefcase, PenTool, Plus, Download } from 'lucide-react'
+import { AlertTriangle, Users, FileWarning, Briefcase, Plus, Download } from 'lucide-react'
 import { CompliancePieChart, HoursBarChart } from '@/components/dashboard/dashboard-charts'
 
 export default function Index() {
   const { company } = useOutletContext<AppContextType>()
   const [stats, setStats] = useState({ total: '0', pendingDocs: '0', activeShifts: '0' })
   const [expiring, setExpiring] = useState(0)
+  const [pieData, setPieData] = useState<any[]>([])
+  const [barData, setBarData] = useState<any[]>([])
 
   useEffect(() => {
     const loadStats = async () => {
+      const { data: empData } = await supabase
+        .from('empresa_contratante')
+        .select('id')
+        .eq('nome_fantasia', company)
+        .single()
+
+      if (!empData) return
+      const empresaId = empData.id
+
       const { count: emps } = await supabase
-        .from('employees')
+        .from('colaborador')
         .select('id', { count: 'exact' })
-        .eq('company', company)
-      const { count: docs } = await supabase
+        .eq('empresa_id', empresaId)
+
+      const todayStr = new Date().toISOString().split('T')[0]
+      const { count: active } = await supabase
+        .from('time_tracks')
+        .select('id, colaborador!inner(empresa_id)', { count: 'exact' })
+        .eq('colaborador.empresa_id', empresaId)
+        .eq('track_date', todayStr)
+
+      const { data: allDocs } = await supabase
         .from('employee_documents')
-        .select('id, employees!inner(company)', { count: 'exact' })
-        .eq('employees.company', company)
-        .lt('expiry_date', new Date().toISOString())
-      const { count: docsExpiring } = await supabase
-        .from('employee_documents')
-        .select('id, employees!inner(company)', { count: 'exact' })
-        .eq('employees.company', company)
-        .gte('expiry_date', new Date().toISOString())
-        .lt('expiry_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+        .select('expiry_date, colaborador!inner(empresa_id)')
+        .eq('colaborador.empresa_id', empresaId)
+
+      let valid = 0,
+        expiringCount = 0,
+        expired = 0
+      const now = new Date()
+      const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+      allDocs?.forEach((d) => {
+        if (!d.expiry_date) {
+          valid++
+          return
+        }
+        const exp = new Date(d.expiry_date)
+        if (exp < now) expired++
+        else if (exp < in30d) expiringCount++
+        else valid++
+      })
 
       setStats({
         total: emps?.toString() || '0',
-        pendingDocs: docs?.toString() || '0',
-        activeShifts: Math.floor(Math.random() * 50).toString() || '0',
+        pendingDocs: expired.toString(),
+        activeShifts: active?.toString() || '0',
       })
-      setExpiring(docsExpiring || 0)
+      setExpiring(expiringCount)
+
+      setPieData([
+        { name: 'Em dia', value: valid, fill: 'hsl(var(--chart-1))' },
+        { name: 'A Vencer', value: expiringCount, fill: 'hsl(var(--chart-2))' },
+        { name: 'Vencido', value: expired, fill: 'hsl(var(--chart-3))' },
+      ])
+
+      const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
+      const { data: tracks } = await supabase
+        .from('time_tracks')
+        .select('track_date, total_hours, colaborador!inner(empresa_id)')
+        .eq('colaborador.empresa_id', empresaId)
+        .gte('track_date', weekAgo.toISOString().split('T')[0])
+
+      const daysMap: Record<string, number> = {}
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+        daysMap[d.toISOString().split('T')[0]] = 0
+      }
+
+      tracks?.forEach((t) => {
+        if (daysMap[t.track_date] !== undefined) {
+          daysMap[t.track_date] += Number(t.total_hours) || 0
+        }
+      })
+
+      const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+      const newBarData = Object.entries(daysMap).map(([dateStr, hours]) => {
+        const d = new Date(`${dateStr}T12:00:00Z`)
+        return {
+          name: daysOfWeek[d.getUTCDay()],
+          hours: Number(hours.toFixed(1)),
+        }
+      })
+      setBarData(newBarData)
     }
     loadStats()
   }, [company])
@@ -100,7 +165,7 @@ export default function Index() {
             <CardTitle className="text-lg">Conformidade de Documentos</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center pb-2">
-            <CompliancePieChart />
+            <CompliancePieChart data={pieData} />
           </CardContent>
         </Card>
 
@@ -109,7 +174,7 @@ export default function Index() {
             <CardTitle className="text-lg">Horas Trabalhadas na Semana</CardTitle>
           </CardHeader>
           <CardContent>
-            <HoursBarChart />
+            <HoursBarChart data={barData} />
           </CardContent>
         </Card>
       </div>
