@@ -29,13 +29,22 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog'
-import { Download, Send, Save } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Download, Send, Save, Check, ChevronsUpDown } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { format, getDaysInMonth, isWeekend } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/use-auth'
 
-// Feriados fixos básicos
 const getHolidays = (year: number) => [
   `${year}-01-01`,
   `${year}-04-21`,
@@ -47,40 +56,38 @@ const getHolidays = (year: number) => [
   `${year}-12-25`,
 ]
 
-function calculateHours(in1: string, out1: string, in2: string, out2: string) {
-  let total = 0
+function calculateHours(in1: string, out1: string, in2: string, out2: string, rules: any) {
+  const roundTime = (timeStr: string) => {
+    if (!timeStr || timeStr.length < 4) return null
+    const [hStr, mStr] = timeStr.split(':')
+    let h = parseInt(hStr, 10)
+    let m = parseInt(mStr, 10)
+    if (isNaN(h) || isNaN(m)) return null
 
-  const timeToHours = (t: string) => {
-    if (!t || t.length < 4) return 0
-    const [h, m] = t.split(':').map(Number)
-    if (isNaN(h) || isNaN(m)) return 0
+    if (m >= 0 && m <= 10) m = 0
+    else if (m >= 11 && m <= 40) m = 30
+    else if (m >= 41 && m <= 59) {
+      m = 0
+      h += 1
+    }
     return h + m / 60
   }
 
-  const tIn1 = timeToHours(in1)
-  const tOut1 = timeToHours(out1)
-  const tIn2 = timeToHours(in2)
-  const tOut2 = timeToHours(out2)
+  const start = roundTime(in1)
+  let end = roundTime(out2)
+  if (end === null) end = roundTime(out1)
 
-  if (in1 && out1 && in2 && out2) {
-    if (tOut1 > tIn1) total += tOut1 - tIn1
-    if (tOut2 > tIn2) total += tOut2 - tIn2
-  } else if (in1 && out1 && !in2 && !out2) {
-    if (tOut1 > tIn1) {
-      total = tOut1 - tIn1
-      if (total > 6) total -= 1 // Desconta 1h almoço para jornadas maiores que 6h
+  if (start !== null && end !== null && end > start) {
+    let gross = end - start
+    const desconto = rules?.desconto_almoco !== undefined ? parseFloat(rules.desconto_almoco) : 1
+
+    // Desconta o almoço se a jornada for razoavelmente longa (ex: 5h ou mais)
+    if (gross >= 5 && desconto > 0) {
+      gross -= desconto
     }
-  } else if (in1 && out2 && !out1 && !in2) {
-    if (tOut2 > tIn1) {
-      total = tOut2 - tIn1
-      if (total > 6) total -= 1 // Desconta 1h almoço para jornadas maiores que 6h
-    }
-  } else {
-    if (in1 && out1 && tOut1 > tIn1) total += tOut1 - tIn1
-    if (in2 && out2 && tOut2 > tIn2) total += tOut2 - tIn2
+    return gross > 0 ? gross : 0
   }
-
-  return total > 0 ? total : 0
+  return 0
 }
 
 const handleTimeMask = (val: string) => {
@@ -92,11 +99,44 @@ const handleTimeMask = (val: string) => {
 
 export default function TimeTracking() {
   const { company } = useOutletContext<AppContextType>()
+  const { user } = useAuth()
   const [employees, setEmployees] = useState<any[]>([])
   const [selectedEmpId, setSelectedEmpId] = useState('')
+  const [empOpen, setEmpOpen] = useState(false)
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'))
   const [grid, setGrid] = useState<any[]>([])
+  const [pointRules, setPointRules] = useState<any>({ desconto_almoco: 1 })
   const { toast } = useToast()
+
+  const currentYear = new Date().getFullYear()
+  const monthsList = useMemo(() => {
+    const list = []
+    for (let y = currentYear - 1; y <= currentYear + 1; y++) {
+      for (let m = 0; m < 12; m++) {
+        const d = new Date(y, m, 1)
+        list.push({
+          value: format(d, 'yyyy-MM'),
+          label: format(d, 'MMMM yyyy', { locale: ptBR }),
+        })
+      }
+    }
+    return list
+  }, [currentYear])
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if ((data as any)?.configuracoes_ponto) {
+            setPointRules((data as any).configuracoes_ponto)
+          }
+        })
+    }
+  }, [user])
 
   useEffect(() => {
     supabase
@@ -116,15 +156,18 @@ export default function TimeTracking() {
             .then(({ data }) => {
               if (data) {
                 setEmployees(
-                  data.map((e: any) => ({
-                    id: e.id,
-                    name: e.nome_completo,
-                    role: e.cargo_nome_snapshot,
-                    hr_roles: {
-                      hourly_rate: e.cargo?.valor_hora || e.valor_hora_snapshot || 0,
-                      daily_rate: e.cargo?.valor_diaria || e.valor_diaria_snapshot || 0,
-                    },
-                  })),
+                  data.map((e: any) => {
+                    const cargoObj = Array.isArray(e.cargo) ? e.cargo[0] : e.cargo
+                    return {
+                      id: e.id,
+                      name: e.nome_completo,
+                      role: e.cargo_nome_snapshot,
+                      hr_roles: {
+                        hourly_rate: cargoObj?.valor_hora || e.valor_hora_snapshot || 0,
+                        daily_rate: cargoObj?.valor_diaria || e.valor_diaria_snapshot || 0,
+                      },
+                    }
+                  }),
                 )
               }
             })
@@ -133,9 +176,9 @@ export default function TimeTracking() {
   }, [company])
 
   useEffect(() => {
-    if (!selectedEmpId || !month) return
+    if (!selectedEmpId || !month || !pointRules) return
     loadGrid()
-  }, [selectedEmpId, month])
+  }, [selectedEmpId, month, pointRules])
 
   const loadGrid = async () => {
     const [y, m] = month.split('-')
@@ -165,6 +208,12 @@ export default function TimeTracking() {
       const dateObj = new Date(yearNum, monthNum - 1, d)
       const existing = trackMap.get(dateStr)
 
+      const in1 = existing?.in1?.slice(0, 5) || ''
+      const out1 = existing?.out1?.slice(0, 5) || ''
+      const in2 = existing?.in2?.slice(0, 5) || ''
+      const out2 = existing?.out2?.slice(0, 5) || ''
+      const calculated = calculateHours(in1, out1, in2, out2, pointRules)
+
       newGrid.push({
         date: dateStr,
         dateObj,
@@ -172,11 +221,11 @@ export default function TimeTracking() {
         isHoliday: holidays.includes(dateStr),
         isToday: dateStr === todayStr,
         id: existing?.id,
-        in1: existing?.in1?.slice(0, 5) || '',
-        out1: existing?.out1?.slice(0, 5) || '',
-        in2: existing?.in2?.slice(0, 5) || '',
-        out2: existing?.out2?.slice(0, 5) || '',
-        total_hours: existing?.total_hours || 0,
+        in1,
+        out1,
+        in2,
+        out2,
+        total_hours: calculated,
         saving: false,
       })
     }
@@ -211,7 +260,7 @@ export default function TimeTracking() {
     const newGrid = [...grid]
     newGrid[index][field] = value
     const row = newGrid[index]
-    row.total_hours = calculateHours(row.in1, row.out1, row.in2, row.out2)
+    row.total_hours = calculateHours(row.in1, row.out1, row.in2, row.out2, pointRules)
     setGrid(newGrid)
   }
 
@@ -233,6 +282,7 @@ export default function TimeTracking() {
       out2: row.out2 || null,
       total_hours: parseFloat(row.total_hours.toFixed(2)),
     }
+
     if (row.id) {
       if (!row.in1 && !row.out1 && !row.in2 && !row.out2) {
         await supabase.from('time_tracks').delete().eq('id', row.id)
@@ -257,12 +307,18 @@ export default function TimeTracking() {
           <p className="text-muted-foreground mt-1">Controle de jornada e fechamento</p>
         </div>
         <div className="flex items-center gap-4">
-          <Input
-            type="month"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="w-40 bg-card"
-          />
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger className="w-[180px] bg-card capitalize">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthsList.map((m) => (
+                <SelectItem key={m.value} value={m.value} className="capitalize">
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <ExportDialog />
         </div>
       </div>
@@ -270,20 +326,51 @@ export default function TimeTracking() {
       <Card className="shadow-subtle border-border bg-gradient-to-br from-card to-muted/10">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-full md:w-1/3 space-y-2">
+            <div className="w-full md:w-1/3 space-y-2 flex flex-col">
               <Label>Selecione o Colaborador</Label>
-              <Select value={selectedEmpId} onValueChange={setSelectedEmpId}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={empOpen} onOpenChange={setEmpOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={empOpen}
+                    className="w-full justify-between font-normal bg-background"
+                  >
+                    {selectedEmpId
+                      ? employees.find((e) => e.id === selectedEmpId)?.name
+                      : 'Buscar colaborador...'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] md:w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Digite o nome..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {employees.map((e) => (
+                          <CommandItem
+                            key={e.id}
+                            value={e.name}
+                            onSelect={() => {
+                              setSelectedEmpId(e.id)
+                              setEmpOpen(false)
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                selectedEmpId === e.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                            {e.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {selectedEmpData && (
@@ -300,7 +387,7 @@ export default function TimeTracking() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">Diária (8h)</p>
+                    <p className="text-xs text-muted-foreground uppercase mb-1">Diária Padrão</p>
                     <p className="font-mono font-medium text-primary">
                       {dailyRate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>

@@ -19,6 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -41,10 +50,21 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { FileText, Plus, Download, Edit2, AlertCircle, Trash2, Loader2 } from 'lucide-react'
+import {
+  FileText,
+  Plus,
+  Download,
+  Edit2,
+  AlertCircle,
+  Trash2,
+  Loader2,
+  Check,
+  ChevronsUpDown,
+} from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
+import { cn } from '@/lib/utils'
 
 export default function Documents() {
   const { company } = useOutletContext<AppContextType>()
@@ -61,6 +81,7 @@ export default function Documents() {
   const [isGenerating, setIsGenerating] = useState(false)
 
   const [isOpen, setIsOpen] = useState(false)
+  const [colOpen, setColOpen] = useState(false)
   const [formData, setFormData] = useState({
     id: '',
     template_id: '',
@@ -259,7 +280,6 @@ export default function Documents() {
       const t1 = witnesses.find((w) => w.id === formData.t1_id)
       const t2 = witnesses.find((w) => w.id === formData.t2_id)
 
-      // Fetch the correct modelo_versao_id
       let { data: modeloVersao } = await supabase
         .from('modelo_versao')
         .select('id')
@@ -269,7 +289,6 @@ export default function Documents() {
         .single()
 
       if (!modeloVersao) {
-        // Fallback: create an initial version if it doesn't exist
         const { data: newMv, error: mvError } = await supabase
           .from('modelo_versao')
           .insert({
@@ -771,23 +790,51 @@ export default function Documents() {
           </DialogHeader>
           <div className="grid grid-cols-2 gap-6 py-4">
             <div className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col">
                 <Label>Colaborador</Label>
-                <Select
-                  value={formData.colaborador_id}
-                  onValueChange={(v) => processContent(formData.template_id, v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.nome_completo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={colOpen} onOpenChange={setColOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={colOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {formData.colaborador_id
+                        ? employees.find((e) => e.id === formData.colaborador_id)?.nome_completo
+                        : 'Buscar colaborador...'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Digite o nome..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {employees.map((e) => (
+                            <CommandItem
+                              key={e.id}
+                              value={e.nome_completo}
+                              onSelect={() => {
+                                processContent(formData.template_id, e.id, formData.data_curso)
+                                setColOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  formData.colaborador_id === e.id ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              {e.nome_completo}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label>Modelo</Label>

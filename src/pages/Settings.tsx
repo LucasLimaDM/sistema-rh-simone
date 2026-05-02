@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -40,6 +41,10 @@ export default function Settings() {
   const [isOpen, setIsOpen] = useState(false)
   const [isWitnessOpen, setIsWitnessOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
+  const [pointRules, setPointRules] = useState({
+    texto_explicativo: '',
+    desconto_almoco: 1,
+  })
   const [formData, setFormData] = useState({
     id: '',
     nome_completo: '',
@@ -70,10 +75,26 @@ export default function Settings() {
     if (data) setWitnesses(data)
   }
 
+  const fetchUserSettings = async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+    if (data && (data as any).configuracoes_ponto) {
+      setPointRules({
+        texto_explicativo: (data as any).configuracoes_ponto.texto_explicativo || '',
+        desconto_almoco: (data as any).configuracoes_ponto.desconto_almoco ?? 1,
+      })
+    }
+  }
+
   useEffect(() => {
     fetchProfiles()
     fetchWitnesses()
-  }, [])
+    if (user) fetchUserSettings()
+  }, [user])
 
   const handleSave = async () => {
     if (newPassword && (user?.id === formData.id || user?.email === formData.email)) {
@@ -183,12 +204,28 @@ export default function Settings() {
     toast({ title: 'Upload concluído', description: 'Assinatura carregada com sucesso.' })
   }
 
+  const handleSavePointRules = async () => {
+    if (!user) return
+    const { error } = await supabase
+      .from('user_settings')
+      .update({
+        configuracoes_ponto: pointRules,
+      } as any)
+      .eq('user_id', user.id)
+
+    if (!error) {
+      toast({ title: 'Sucesso', description: 'Regras de ponto salvas com sucesso.' })
+    } else {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-primary">Configurações</h1>
         <p className="text-muted-foreground mt-1">
-          Gerencie acessos ao sistema e cadastros auxiliares como testemunhas.
+          Gerencie acessos ao sistema, testemunhas e regras do sistema.
         </p>
       </div>
 
@@ -196,6 +233,7 @@ export default function Settings() {
         <TabsList>
           <TabsTrigger value="usuarios">Usuários do Sistema</TabsTrigger>
           <TabsTrigger value="testemunhas">Testemunhas</TabsTrigger>
+          <TabsTrigger value="ponto">Regras de Ponto</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios" className="space-y-4 pt-4">
@@ -339,6 +377,52 @@ export default function Settings() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ponto" className="space-y-4 pt-4">
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-primary mb-1">Regras de Cálculo de Ponto</h2>
+                <p className="text-sm text-muted-foreground">
+                  Personalize a fórmula e o texto explicativo da lógica de contagem de horas.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Texto Explicativo da Fórmula de Cálculo</Label>
+                <Textarea
+                  value={pointRules.texto_explicativo}
+                  onChange={(e) =>
+                    setPointRules({ ...pointRules, texto_explicativo: e.target.value })
+                  }
+                  className="min-h-[250px] font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este texto será exibido como referência da política da empresa e não afeta
+                  diretamente o código.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Desconto Fixo de Almoço (horas)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={pointRules.desconto_almoco}
+                  onChange={(e) =>
+                    setPointRules({
+                      ...pointRules,
+                      desconto_almoco: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  className="max-w-[200px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Quantidade de horas descontadas automaticamente em jornadas superiores a 5 horas.
+                </p>
+              </div>
+              <Button onClick={handleSavePointRules}>Salvar Regras</Button>
             </CardContent>
           </Card>
         </TabsContent>
