@@ -21,6 +21,18 @@ import { Link } from 'react-router-dom'
 import { logAudit } from '@/lib/audit'
 import { useAuth } from '@/hooks/use-auth'
 
+function getRemunerationSuffix(cargoName: string) {
+  if (!cargoName) return '/h'
+  const dailyRoles = [
+    'Coordenador',
+    'Diretor',
+    'Supervisor',
+    'Assistente Administrativo',
+    'Encarregado de Almoxarifado',
+  ]
+  return dailyRoles.includes(cargoName) ? '/dia' : '/h'
+}
+
 export default function Employees() {
   const { company } = useOutletContext<AppContextType>()
   const { user } = useAuth()
@@ -186,7 +198,8 @@ export default function Employees() {
                     <div className="flex flex-col">
                       <span className="font-medium">{emp.cargo_nome_snapshot}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        R$ {Number(emp.valor_hora_snapshot).toFixed(2)}/h
+                        R$ {Number(emp.valor_hora_snapshot).toFixed(2)}
+                        {getRemunerationSuffix(emp.cargo_nome_snapshot)}
                       </span>
                     </div>
                   </TableCell>

@@ -24,6 +24,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="flex h-screen items-center justify-center">Carregando...</div>
+  if (!user) return <Navigate to="/login" />
+  if (user.role !== 'Admin') return <Navigate to="/" />
+  return <>{children}</>
+}
+
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
@@ -43,7 +51,14 @@ const AppRoutes = () => (
       <Route path="/escalas" element={<WorkScales />} />
       <Route path="/modelos" element={<Templates />} />
       <Route path="/documentos" element={<Documents />} />
-      <Route path="/configuracoes" element={<Settings />} />
+      <Route
+        path="/configuracoes"
+        element={
+          <AdminRoute>
+            <Settings />
+          </AdminRoute>
+        }
+      />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
