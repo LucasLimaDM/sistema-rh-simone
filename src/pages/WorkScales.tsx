@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { startOfWeek, addDays, format, subWeeks, addWeeks } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useRef } from 'react'
 
 function ScaleCell({ initialData, userId, dateStr, onSave }: any) {
   const [data, setData] = useState(initialData || { hours: 8, is_day_off: false, project_name: '' })
@@ -86,6 +88,7 @@ export default function WorkScales() {
   const [scalesMap, setScalesMap] = useState<Record<string, any>>({})
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [loading, setLoading] = useState(false)
+  const loadingRef = useRef(false)
   const { toast } = useToast()
 
   const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i))
@@ -120,6 +123,14 @@ export default function WorkScales() {
     fetchUsersAndScales()
   }, [weekStart])
 
+  useRealtime('work_scales', () => {
+    if (!loadingRef.current) fetchUsersAndScales()
+  })
+
+  useRealtime('users', () => {
+    if (!loadingRef.current) fetchUsersAndScales()
+  })
+
   const handleSave = async (userId: string, dateStr: string, next: any) => {
     const key = `${userId}_${dateStr}`
     try {
@@ -147,21 +158,36 @@ export default function WorkScales() {
   }
 
   const handleAuto6x1 = async () => {
-    setLoading(true)
-    for (const user of users) {
-      const offDayIndex = Math.floor(Math.random() * 7)
-      for (let i = 0; i < 7; i++) {
-        const dateStr = format(days[i], 'yyyy-MM-dd')
-        const isDayOff = i === offDayIndex
-        await handleSave(user.id, dateStr, {
-          hours: isDayOff ? 0 : 8,
-          is_day_off: isDayOff,
-          project_name: '',
-        })
-      }
+    if (users.length === 0) {
+      toast({
+        title: 'Nenhum colaborador encontrado',
+        description: 'Não há colaboradores elegíveis para gerar escala.',
+        variant: 'destructive',
+      })
+      return
     }
-    setLoading(false)
-    toast({ title: 'Escala 6x1 Gerada', description: 'Folgas distribuídas e salvas.' })
+
+    setLoading(true)
+    loadingRef.current = true
+    try {
+      for (const user of users) {
+        const offDayIndex = Math.floor(Math.random() * 7)
+        for (let i = 0; i < 7; i++) {
+          const dateStr = format(days[i], 'yyyy-MM-dd')
+          const isDayOff = i === offDayIndex
+          await handleSave(user.id, dateStr, {
+            hours: isDayOff ? 0 : 8,
+            is_day_off: isDayOff,
+            project_name: '',
+          })
+        }
+      }
+      toast({ title: 'Escala 6x1 Gerada', description: 'Folgas distribuídas e salvas.' })
+    } finally {
+      setLoading(false)
+      loadingRef.current = false
+      fetchUsersAndScales()
+    }
   }
 
   return (
