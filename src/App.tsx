@@ -9,7 +9,6 @@ import Employees from './pages/Employees'
 import TimeTracking from './pages/TimeTracking'
 import Roles from './pages/Roles'
 import WorkScales from './pages/WorkScales'
-import Users from './pages/Users'
 import Templates from './pages/Templates'
 import Documents from './pages/Documents'
 import Settings from './pages/Settings'
@@ -42,7 +41,6 @@ const AppRoutes = () => (
       <Route path="/cargos" element={<Roles />} />
       <Route path="/ponto" element={<TimeTracking />} />
       <Route path="/escalas" element={<WorkScales />} />
-      <Route path="/equipes" element={<Users />} />
       <Route path="/modelos" element={<Templates />} />
       <Route path="/documentos" element={<Documents />} />
       <Route path="/configuracoes" element={<Settings />} />

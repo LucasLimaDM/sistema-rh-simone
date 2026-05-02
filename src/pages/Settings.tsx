@@ -29,7 +29,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Shield, User as UserIcon, Upload } from 'lucide-react'
+import { Shield, User as UserIcon, Upload, Trash2, Plus } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
 import { maskCPF } from '@/lib/utils'
@@ -38,7 +38,9 @@ export default function Settings() {
   const { user } = useAuth()
   const [profiles, setProfiles] = useState<any[]>([])
   const [witnesses, setWitnesses] = useState<any[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [isAddOpen, setIsAddOpen] = useState(false)
   const [isWitnessOpen, setIsWitnessOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [pointRules, setPointRules] = useState({
@@ -53,6 +55,14 @@ export default function Settings() {
     cpf: '',
     assinatura_url: '',
   })
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'Usuario',
+    cpf: '',
+    assinatura_url: '',
+  })
   const [witnessData, setWitnessData] = useState({
     id: '',
     nome: '',
@@ -64,7 +74,16 @@ export default function Settings() {
 
   const fetchProfiles = async () => {
     const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
-    if (data) setProfiles(data)
+    if (data) {
+      setProfiles(data)
+      if (user) {
+        const currentUserProfile = data.find((p) => p.id === user.id || p.email === user.email)
+        setIsAdmin(
+          currentUserProfile?.tipo_usuario === 'Admin' ||
+            user.email === 'simone@primerpisos.com.br',
+        )
+      }
+    }
   }
 
   const fetchWitnesses = async () => {
@@ -111,6 +130,7 @@ export default function Settings() {
 
     const payload = {
       nome_completo: formData.nome_completo,
+      email: formData.email,
       tipo_usuario: formData.tipo_usuario,
       cpf: formData.cpf,
       assinatura_url: formData.assinatura_url,
@@ -122,6 +142,8 @@ export default function Settings() {
       setIsOpen(false)
       setNewPassword('')
       fetchProfiles()
+    } else {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
     }
   }
 
@@ -148,6 +170,79 @@ export default function Settings() {
     } = supabase.storage.from('rh_files').getPublicUrl(filePath)
     setFormData({ ...formData, assinatura_url: publicUrl })
     toast({ title: 'Upload concluído', description: 'Assinatura carregada com sucesso.' })
+  }
+
+  const handleUploadNewUserSignature = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    toast({ title: 'Enviando assinatura...', description: 'Aguarde o upload.' })
+    const fileExt = file.name.split('.').pop()
+    const fileName = `assinatura_novo_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+    const filePath = `assinaturas_usuarios/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('rh_files')
+      .upload(filePath, file, { upsert: true })
+
+    if (uploadError) {
+      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
+      return
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('rh_files').getPublicUrl(filePath)
+    setNewUserData({ ...newUserData, assinatura_url: publicUrl })
+    toast({ title: 'Upload concluído', description: 'Assinatura carregada com sucesso.' })
+  }
+
+  const handleAddUser = async () => {
+    if (!newUserData.name || !newUserData.email) return
+    if (!newUserData.password) {
+      return toast({
+        title: 'Atenção',
+        description: 'A senha é obrigatória',
+        variant: 'destructive',
+      })
+    }
+    const { data, error } = await supabase.functions.invoke('invite-user', { body: newUserData })
+    if (error || data?.error) {
+      toast({
+        title: 'Erro ao adicionar',
+        description: error?.message || data?.error,
+        variant: 'destructive',
+      })
+    } else {
+      if (newUserData.cpf || newUserData.assinatura_url) {
+        await supabase
+          .from('usuario_sistema')
+          .update({
+            cpf: newUserData.cpf,
+            assinatura_url: newUserData.assinatura_url,
+          })
+          .eq('email', newUserData.email)
+      }
+      toast({ title: 'Usuário adicionado com sucesso' })
+      setIsAddOpen(false)
+      setNewUserData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'Usuario',
+        cpf: '',
+        assinatura_url: '',
+      })
+      fetchProfiles()
+    }
+  }
+
+  const handleDeleteUser = async (id: string) => {
+    if (!isAdmin) return toast({ title: 'Acesso Negado', variant: 'destructive' })
+    if (!confirm('Deseja realmente excluir este usuário?')) return
+    await supabase.from('usuario_sistema').delete().eq('id', id)
+    toast({ title: 'Usuário excluído' })
+    fetchProfiles()
   }
 
   const handleSaveWitness = async () => {
@@ -237,6 +332,14 @@ export default function Settings() {
         </TabsList>
 
         <TabsContent value="usuarios" className="space-y-4 pt-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-primary">Usuários Cadastrados</h2>
+            {isAdmin && (
+              <Button onClick={() => setIsAddOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Novo Usuário
+              </Button>
+            )}
+          </div>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -278,17 +381,29 @@ export default function Settings() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setFormData({ ...p, cpf: p.cpf || '' })
-                            setNewPassword('')
-                            setIsOpen(true)
-                          }}
-                        >
-                          Configurar
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setFormData({ ...p, cpf: p.cpf || '', email: p.email || '' })
+                              setNewPassword('')
+                              setIsOpen(true)
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          {isAdmin && p.id !== user?.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive h-8 w-8"
+                              onClick={() => handleDeleteUser(p.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -428,17 +543,112 @@ export default function Settings() {
         </TabsContent>
       </Tabs>
 
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
+            <div className="space-y-2">
+              <Label>Nome Completo</Label>
+              <Input
+                value={newUserData.name}
+                onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                value={newUserData.email}
+                type="email"
+                onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>CPF</Label>
+              <Input
+                value={newUserData.cpf}
+                onChange={(e) => setNewUserData({ ...newUserData, cpf: maskCPF(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Perfil de Acesso</Label>
+              <Select
+                value={newUserData.role}
+                onValueChange={(v) => setNewUserData({ ...newUserData, role: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Usuario">Usuário</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Senha Temporária</Label>
+              <Input
+                value={newUserData.password}
+                type="password"
+                onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Assinatura (Imagem PNG p/ PDFs)</Label>
+              <div className="flex items-center gap-4">
+                {newUserData.assinatura_url && (
+                  <img
+                    src={newUserData.assinatura_url}
+                    className="h-10 border p-1 bg-white"
+                    alt="Assinatura"
+                  />
+                )}
+                <Button variant="outline" className="relative">
+                  <Upload className="h-4 w-4 mr-2" /> Upload{' '}
+                  <input
+                    type="file"
+                    className="absolute inset-0 opacity-0"
+                    accept="image/*"
+                    onChange={handleUploadNewUserSignature}
+                  />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddUser}
+              disabled={!newUserData.name || !newUserData.email || !newUserData.password}
+            >
+              Salvar Usuário
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Configuração Individual de Segurança</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
                 value={formData.nome_completo}
                 onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -511,7 +721,7 @@ export default function Settings() {
           <DialogHeader>
             <DialogTitle>{witnessData.id ? 'Editar Testemunha' : 'Nova Testemunha'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input

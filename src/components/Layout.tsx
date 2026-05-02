@@ -54,7 +54,6 @@ const navItems = [
   { title: 'Gestão de Escalas', url: '/escalas', icon: CalendarDays },
   { title: 'Modelos', url: '/modelos', icon: FileText },
   { title: 'Documentos', url: '/documentos', icon: Files },
-  { title: 'Gestão de Equipes', url: '/equipes', icon: Users },
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ]
 
