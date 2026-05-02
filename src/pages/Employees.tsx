@@ -24,13 +24,14 @@ import { useAuth } from '@/hooks/use-auth'
 function getRemunerationSuffix(cargoName: string) {
   if (!cargoName) return '/h'
   const dailyRoles = [
-    'Coordenador',
-    'Diretor',
-    'Supervisor',
-    'Assistente Administrativo',
-    'Encarregado de Almoxarifado',
+    'coordenador',
+    'diretor',
+    'supervisor',
+    'assistente administrativo',
+    'encarregado de almoxarifado',
   ]
-  return dailyRoles.includes(cargoName) ? '/dia' : '/h'
+  const normalized = cargoName.toLowerCase()
+  return dailyRoles.some((r) => normalized.includes(r)) ? '/dia' : '/h'
 }
 
 export default function Employees() {
@@ -196,15 +197,17 @@ export default function Employees() {
                   <TableCell>{emp.tipo_colaborador}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <span className="font-medium">{emp.cargo_nome_snapshot}</span>
+                      <span className="font-medium">
+                        {emp.cargo_nome_snapshot || emp.cargo?.nome || 'Não definido'}
+                      </span>
                       <span className="text-[10px] text-muted-foreground">
-                        R${' '}
                         {Number(
-                          getRemunerationSuffix(emp.cargo_nome_snapshot) === '/dia'
+                          getRemunerationSuffix(emp.cargo_nome_snapshot || emp.cargo?.nome) ===
+                            '/dia'
                             ? emp.valor_diaria_snapshot || emp.cargo?.valor_diaria || 0
                             : emp.valor_hora_snapshot || emp.cargo?.valor_hora || 0,
-                        ).toFixed(2)}
-                        {getRemunerationSuffix(emp.cargo_nome_snapshot)}
+                        ).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        {getRemunerationSuffix(emp.cargo_nome_snapshot || emp.cargo?.nome)}
                       </span>
                     </div>
                   </TableCell>

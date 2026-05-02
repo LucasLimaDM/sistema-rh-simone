@@ -106,9 +106,10 @@ export function EmployeeFormSheet({
             setAllCompanies(data)
             if (!employeeToEdit) {
               const defaults = data
-                .filter(
-                  (c) => c.nome_fantasia === 'Primer Pisos' || c.nome_fantasia === 'Piso Plano',
-                )
+                .filter((c) => {
+                  const nf = c.nome_fantasia?.toLowerCase() || ''
+                  return nf.includes('primer pisos') || nf.includes('piso plano')
+                })
                 .map((c) => c.id)
               const initial = Array.from(new Set([...defaults, empresaId].filter(Boolean)))
               setSelectedEmpresas(initial)
@@ -137,17 +138,22 @@ export function EmployeeFormSheet({
           .in('empresa_id', empIdsToFetch)
           .then(({ data }) => {
             if (data) {
-              const roleOptions = data.map((r) => ({
-                ...r,
-                displayName: r.nome,
-              }))
+              const roleOptions = data.map((r) => {
+                const cleanName = r.nome.replace(/\s*\(.*?\)\s*/g, '').trim()
+                return {
+                  ...r,
+                  displayName: cleanName,
+                  nome_limpo: cleanName,
+                }
+              })
               if (employeeToEdit?.cargo_id) {
                 roleOptions.sort((a, b) =>
                   a.id === employeeToEdit.cargo_id ? -1 : b.id === employeeToEdit.cargo_id ? 1 : 0,
                 )
               }
               const uniqueRoles = roleOptions.filter(
-                (role, index, self) => index === self.findIndex((t) => t.nome === role.nome),
+                (role, index, self) =>
+                  index === self.findIndex((t) => t.nome_limpo === role.nome_limpo),
               )
               setRoles(uniqueRoles)
             }
@@ -270,7 +276,7 @@ export function EmployeeFormSheet({
       data_nascimento: data.data_nascimento || null,
       tipo_colaborador: data.tipo_colaborador,
       cargo_id: data.cargo_id,
-      cargo_nome_snapshot: selectedRole?.nome || '',
+      cargo_nome_snapshot: selectedRole?.nome_limpo || selectedRole?.nome || '',
       cargo_descricao_snapshot: selectedRole?.descricao_rich_text || {},
       valor_hora_snapshot: selectedRole?.valor_hora || 0,
       valor_diaria_snapshot: selectedRole?.valor_diaria || 0,
@@ -298,7 +304,7 @@ export function EmployeeFormSheet({
         name: data.nome_completo,
         company: companyNames,
         contract_type: data.tipo_colaborador,
-        role: selectedRole?.nome || 'Colaborador',
+        role: selectedRole?.nome_limpo || selectedRole?.nome || 'Colaborador',
         status: 'ativo',
         company_name: ['MEI', 'Ltda.'].includes(data.tipo_colaborador) ? data.razao_social : null,
       })
@@ -310,7 +316,7 @@ export function EmployeeFormSheet({
         .update({
           name: data.nome_completo,
           contract_type: data.tipo_colaborador,
-          role: selectedRole?.nome || 'Colaborador',
+          role: selectedRole?.nome_limpo || selectedRole?.nome || 'Colaborador',
           company: companyNames,
           company_name: ['MEI', 'Ltda.'].includes(data.tipo_colaborador) ? data.razao_social : null,
         })
