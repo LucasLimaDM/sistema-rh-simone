@@ -243,6 +243,7 @@ export default function TimeTracking() {
     let workingDays = 0
     let weekends = 0
     let holidays = 0
+    let diasTrabalhados = 0
 
     grid.forEach((row) => {
       if (row.isWeekend) weekends++
@@ -251,9 +252,13 @@ export default function TimeTracking() {
 
       totalHours += row.total_hours
       totalValue += row.total_hours * hourlyRate
+
+      if (row.total_hours >= 2) {
+        diasTrabalhados++
+      }
     })
 
-    return { totalHours, totalValue, workingDays, weekends, holidays }
+    return { totalHours, totalValue, workingDays, weekends, holidays, diasTrabalhados }
   }, [grid, hourlyRate])
 
   const handleChange = (index: number, field: string, value: string) => {
@@ -401,7 +406,7 @@ export default function TimeTracking() {
 
       {selectedEmpId && grid.length > 0 && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <Card>
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Total Horas</CardTitle>
@@ -416,6 +421,16 @@ export default function TimeTracking() {
               </CardHeader>
               <CardContent className="p-4 pt-0 text-2xl font-bold text-primary">
                 {stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </CardContent>
+            </Card>
+            <Card className="bg-accent/5 border-accent/20">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm text-accent font-semibold">
+                  Dias trabalhados
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 text-2xl font-bold text-accent">
+                {stats.diasTrabalhados}
               </CardContent>
             </Card>
             <Card>
