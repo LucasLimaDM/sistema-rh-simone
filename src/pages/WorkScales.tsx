@@ -92,7 +92,11 @@ export default function WorkScales() {
 
   const fetchUsersAndScales = async () => {
     try {
-      const usrs = await pb.collection('users').getFullList({ sort: 'name' })
+      const usrs = await pb.collection('users').getFullList({
+        sort: 'name',
+        filter:
+          'role="Encarregado" || role="Instalador Sênior" || role="Instalador Junior" || role="Auxiliar de serviços gerais"',
+      })
       setUsers(usrs)
 
       const startDate = format(days[0], 'yyyy-MM-dd')

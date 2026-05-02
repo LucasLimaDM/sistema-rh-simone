@@ -423,13 +423,11 @@ export default function TimeTracking() {
                 {stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </CardContent>
             </Card>
-            <Card className="bg-accent/5 border-accent/20">
+            <Card className="bg-primary/5 border-primary/20">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm text-accent font-semibold">
-                  Dias trabalhados
-                </CardTitle>
+                <CardTitle className="text-sm text-primary">Dias Trabalhados</CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0 text-2xl font-bold text-accent">
+              <CardContent className="p-4 pt-0 text-2xl font-bold text-primary">
                 {stats.diasTrabalhados}
               </CardContent>
             </Card>

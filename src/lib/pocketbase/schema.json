@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-02T21:25:28.535Z",
+  "generatedAt": "2026-05-02T21:40:07.618Z",
   "collections": [
     {
       "name": "users",
@@ -49,7 +49,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Admin", "Usuario"]
+          "selectValues": [
+            "Admin",
+            "Usuario",
+            "Encarregado",
+            "Instalador Sênior",
+            "Instalador Junior",
+            "Auxiliar de serviços gerais"
+          ]
         }
       ],
       "indexes": [
