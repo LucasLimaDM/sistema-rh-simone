@@ -49,29 +49,45 @@ const getHolidays = (year: number) => [
 
 function calculateHours(in1: string, out1: string, in2: string, out2: string) {
   let total = 0
-  if (in1 && out1) {
-    const d1 = new Date(`1970-01-01T${in1}:00`)
-    const d2 = new Date(`1970-01-01T${out1}:00`)
-    if (d2 > d1) total += (d2.getTime() - d1.getTime()) / 3600000
-  }
-  if (in2 && out2) {
-    const d1 = new Date(`1970-01-01T${in2}:00`)
-    const d2 = new Date(`1970-01-01T${out2}:00`)
-    if (d2 > d1) total += (d2.getTime() - d1.getTime()) / 3600000
+
+  const timeToHours = (t: string) => {
+    if (!t || t.length < 4) return 0
+    const [h, m] = t.split(':').map(Number)
+    if (isNaN(h) || isNaN(m)) return 0
+    return h + m / 60
   }
 
-  // Se preencheu apenas entrada e saída finais, descontar 1h de almoço
-  if (in1 && out2 && !out1 && !in2) {
-    const d1 = new Date(`1970-01-01T${in1}:00`)
-    const d2 = new Date(`1970-01-01T${out2}:00`)
-    if (d2 > d1) {
-      let diff = (d2.getTime() - d1.getTime()) / 3600000
-      if (diff > 4) diff -= 1 // Desconta 1h almoço se trabalhou mais de 4h
-      total = diff
+  const tIn1 = timeToHours(in1)
+  const tOut1 = timeToHours(out1)
+  const tIn2 = timeToHours(in2)
+  const tOut2 = timeToHours(out2)
+
+  if (in1 && out1 && in2 && out2) {
+    if (tOut1 > tIn1) total += tOut1 - tIn1
+    if (tOut2 > tIn2) total += tOut2 - tIn2
+  } else if (in1 && out1 && !in2 && !out2) {
+    if (tOut1 > tIn1) {
+      total = tOut1 - tIn1
+      if (total > 6) total -= 1 // Desconta 1h almoço para jornadas maiores que 6h
     }
+  } else if (in1 && out2 && !out1 && !in2) {
+    if (tOut2 > tIn1) {
+      total = tOut2 - tIn1
+      if (total > 6) total -= 1 // Desconta 1h almoço para jornadas maiores que 6h
+    }
+  } else {
+    if (in1 && out1 && tOut1 > tIn1) total += tOut1 - tIn1
+    if (in2 && out2 && tOut2 > tIn2) total += tOut2 - tIn2
   }
 
   return total > 0 ? total : 0
+}
+
+const handleTimeMask = (val: string) => {
+  let v = val.replace(/\D/g, '')
+  if (v.length > 4) v = v.slice(0, 4)
+  if (v.length > 2) v = v.slice(0, 2) + ':' + v.slice(2)
+  return v
 }
 
 export default function TimeTracking() {
@@ -93,20 +109,20 @@ export default function TimeTracking() {
           supabase
             .from('colaborador')
             .select(
-              'id, nome_completo, cargo_nome_snapshot, valor_hora_snapshot, valor_diaria_snapshot',
+              'id, nome_completo, cargo_nome_snapshot, valor_hora_snapshot, valor_diaria_snapshot, cargo(valor_hora, valor_diaria)',
             )
             .eq('empresa_id', empData.id)
             .order('nome_completo')
             .then(({ data }) => {
               if (data) {
                 setEmployees(
-                  data.map((e) => ({
+                  data.map((e: any) => ({
                     id: e.id,
                     name: e.nome_completo,
                     role: e.cargo_nome_snapshot,
                     hr_roles: {
-                      hourly_rate: e.valor_hora_snapshot,
-                      daily_rate: e.valor_diaria_snapshot,
+                      hourly_rate: e.cargo?.valor_hora || e.valor_hora_snapshot || 0,
+                      daily_rate: e.cargo?.valor_diaria || e.valor_diaria_snapshot || 0,
                     },
                   })),
                 )
@@ -382,44 +398,56 @@ export default function TimeTracking() {
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="time"
+                          type="text"
+                          placeholder="00:00"
+                          maxLength={5}
                           value={row.in1}
-                          onChange={(e) => handleChange(idx, 'in1', e.target.value)}
+                          onChange={(e) => handleChange(idx, 'in1', handleTimeMask(e.target.value))}
                           onBlur={() => handleBlur(idx)}
-                          className={cn('h-8 w-24 text-xs font-mono', {
+                          className={cn('h-8 w-20 text-xs font-mono text-center', {
                             'bg-yellow-100/50 border-yellow-300 dark:bg-yellow-900/30': row.isToday,
                           })}
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="time"
+                          type="text"
+                          placeholder="00:00"
+                          maxLength={5}
                           value={row.out1}
-                          onChange={(e) => handleChange(idx, 'out1', e.target.value)}
+                          onChange={(e) =>
+                            handleChange(idx, 'out1', handleTimeMask(e.target.value))
+                          }
                           onBlur={() => handleBlur(idx)}
-                          className={cn('h-8 w-24 text-xs font-mono', {
+                          className={cn('h-8 w-20 text-xs font-mono text-center', {
                             'bg-yellow-100/50 border-yellow-300 dark:bg-yellow-900/30': row.isToday,
                           })}
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="time"
+                          type="text"
+                          placeholder="00:00"
+                          maxLength={5}
                           value={row.in2}
-                          onChange={(e) => handleChange(idx, 'in2', e.target.value)}
+                          onChange={(e) => handleChange(idx, 'in2', handleTimeMask(e.target.value))}
                           onBlur={() => handleBlur(idx)}
-                          className={cn('h-8 w-24 text-xs font-mono', {
+                          className={cn('h-8 w-20 text-xs font-mono text-center', {
                             'bg-yellow-100/50 border-yellow-300 dark:bg-yellow-900/30': row.isToday,
                           })}
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="time"
+                          type="text"
+                          placeholder="00:00"
+                          maxLength={5}
                           value={row.out2}
-                          onChange={(e) => handleChange(idx, 'out2', e.target.value)}
+                          onChange={(e) =>
+                            handleChange(idx, 'out2', handleTimeMask(e.target.value))
+                          }
                           onBlur={() => handleBlur(idx)}
-                          className={cn('h-8 w-24 text-xs font-mono', {
+                          className={cn('h-8 w-20 text-xs font-mono text-center', {
                             'bg-yellow-100/50 border-yellow-300 dark:bg-yellow-900/30': row.isToday,
                           })}
                         />

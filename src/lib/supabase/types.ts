@@ -2857,7 +2857,7 @@ export const Constants = {
 //   FOREIGN KEY colaborador_cargo_id_fkey: FOREIGN KEY (cargo_id) REFERENCES cargo(id) ON DELETE RESTRICT
 //   FOREIGN KEY colaborador_empresa_id_fkey: FOREIGN KEY (empresa_id) REFERENCES empresa_contratante(id) ON DELETE CASCADE
 //   PRIMARY KEY colaborador_pkey: PRIMARY KEY (id)
-//   CHECK colaborador_tipo_colaborador_check: CHECK ((tipo_colaborador = ANY (ARRAY['PF'::text, 'MEI'::text])))
+//   CHECK colaborador_tipo_colaborador_check: CHECK ((tipo_colaborador = ANY (ARRAY['PF'::text, 'MEI'::text, 'Ltda.'::text])))
 // Table: configuracao_usuario
 //   PRIMARY KEY configuracao_usuario_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY configuracao_usuario_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES usuario_sistema(id) ON DELETE CASCADE
