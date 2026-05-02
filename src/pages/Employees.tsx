@@ -29,6 +29,7 @@ function getRemunerationSuffix(cargoName: string) {
     'supervisor',
     'assistente administrativo',
     'encarregado de almoxarifado',
+    'representante comercial',
   ]
   const normalized = cargoName.toLowerCase()
   return dailyRoles.some((r) => normalized.includes(r)) ? '/dia' : '/h'
