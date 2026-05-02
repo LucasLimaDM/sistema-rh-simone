@@ -77,11 +77,7 @@ export default function Settings() {
     if (data) {
       setProfiles(data)
       if (user) {
-        const currentUserProfile = data.find((p) => p.id === user.id || p.email === user.email)
-        setIsAdmin(
-          currentUserProfile?.tipo_usuario === 'Admin' ||
-            user.email === 'simone@primerpisos.com.br',
-        )
+        setIsAdmin(user.role === 'Admin')
       }
     }
   }

@@ -102,7 +102,18 @@ export function EmployeeFormSheet({
         .from('empresa_contratante')
         .select('id, nome_fantasia')
         .then(({ data }) => {
-          if (data) setAllCompanies(data)
+          if (data) {
+            setAllCompanies(data)
+            if (!employeeToEdit) {
+              const defaults = data
+                .filter(
+                  (c) => c.nome_fantasia === 'Primer Pisos' || c.nome_fantasia === 'Piso Plano',
+                )
+                .map((c) => c.id)
+              const initial = Array.from(new Set([...defaults, empresaId].filter(Boolean)))
+              setSelectedEmpresas(initial)
+            }
+          }
         })
       if (employeeToEdit) {
         const vinculadas = employeeToEdit.dados_dinamicos?.empresas_vinculadas || [
@@ -128,16 +139,24 @@ export function EmployeeFormSheet({
             if (data) {
               const roleOptions = data.map((r) => ({
                 ...r,
-                displayName: `${r.nome} (${allCompanies.find((c) => c.id === r.empresa_id)?.nome_fantasia || '?'})`,
+                displayName: r.nome,
               }))
-              setRoles(roleOptions)
+              if (employeeToEdit?.cargo_id) {
+                roleOptions.sort((a, b) =>
+                  a.id === employeeToEdit.cargo_id ? -1 : b.id === employeeToEdit.cargo_id ? 1 : 0,
+                )
+              }
+              const uniqueRoles = roleOptions.filter(
+                (role, index, self) => index === self.findIndex((t) => t.nome === role.nome),
+              )
+              setRoles(uniqueRoles)
             }
           })
       } else {
         setRoles([])
       }
     }
-  }, [open, selectedEmpresas, empresaId, allCompanies])
+  }, [open, selectedEmpresas, empresaId, allCompanies, employeeToEdit])
 
   useEffect(() => {
     if (open) {

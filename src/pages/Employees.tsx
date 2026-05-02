@@ -198,7 +198,12 @@ export default function Employees() {
                     <div className="flex flex-col">
                       <span className="font-medium">{emp.cargo_nome_snapshot}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        R$ {Number(emp.valor_hora_snapshot).toFixed(2)}
+                        R${' '}
+                        {Number(
+                          getRemunerationSuffix(emp.cargo_nome_snapshot) === '/dia'
+                            ? emp.valor_diaria_snapshot || emp.cargo?.valor_diaria || 0
+                            : emp.valor_hora_snapshot || emp.cargo?.valor_hora || 0,
+                        ).toFixed(2)}
                         {getRemunerationSuffix(emp.cargo_nome_snapshot)}
                       </span>
                     </div>
