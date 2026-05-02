@@ -45,14 +45,35 @@ Deno.serve(async (req: Request) => {
     const startOfDay = new Date(`${todayStr}T00:00:00-03:00`).toISOString()
     const endOfDay = new Date(`${todayStr}T23:59:59.999-03:00`).toISOString()
 
-    // 1. Fetch Sellers
-    const { data: vendedores } = await supabase.from('vendedores').select('id, user_id, nome')
-    const sellerMap = new Map(vendedores?.map((v) => [v.user_id, v.nome]) || [])
-    const sellerIdMap = new Map(vendedores?.map((v) => [v.id, v.nome]) || [])
+    // 1. Fetch Sellers and Users
+    const { data: vendedores } = await supabase
+      .from('vendedores')
+      .select('id, user_id, nome, email')
+    const { data: usuarios } = await supabase
+      .from('usuario_sistema')
+      .select('id, nome_completo, email')
+    const { data: authUsersData } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+    const authUsers = authUsersData?.users || []
+
+    const getUserName = (userId: string) => {
+      const v = vendedores?.find((v) => v.user_id === userId)
+      if (v?.nome) return v.nome
+      const u = usuarios?.find((u) => u.id === userId)
+      if (u?.nome_completo) return u.nome_completo
+      const authUser = authUsers.find((au) => au.id === userId)
+      if (authUser?.user_metadata?.name) return authUser.user_metadata.name
+      if (u?.email) return u.email
+      if (v?.email) return v.email
+      if (authUser?.email) return authUser.email
+      return 'Usuário não identificado'
+    }
 
     // 2. Fetch Pipeline Stages
     const { data: pipelineStages } = await supabase.from('pipeline_stages').select('id, nome')
     const stageMap = new Map(pipelineStages?.map((s) => [s.id, s.nome]) || [])
+
+    const perdidoStageIds =
+      pipelineStages?.filter((s) => s.nome.toLowerCase().includes('perdido')).map((s) => s.id) || []
 
     // 3. Fetch Activities completed today
     const { data: comunicacoes } = await supabase
@@ -76,13 +97,13 @@ Deno.serve(async (req: Request) => {
     // 4. Fetch Pending Activities
     const { data: roteiroPendentes } = await supabase
       .from('followup_roteiro')
-      .select('*, leads(empresa)')
+      .select('*, leads(empresa, etapa)')
       .lte('data_prevista', todayStr)
       .eq('concluido', false)
 
     const { data: followupsPendentes } = await supabase
       .from('followups')
-      .select('*, leads(empresa)')
+      .select('*, leads(empresa, etapa)')
       .lte('data_prevista', endOfDay)
       .eq('concluido', false)
 
@@ -92,8 +113,7 @@ Deno.serve(async (req: Request) => {
 
     comunicacoes?.forEach((c) => {
       const leads = c.leads as any
-      const seller =
-        sellerMap.get(c.user_id) || (leads && sellerIdMap.get(leads.vendedor_id)) || 'Sistema'
+      const seller = getUserName(c.user_id)
       const cliente = leads?.empresa || 'Cliente Desconhecido'
       const tipoStr = c.tipo === 'recebido' ? 'Recebeu' : 'Enviou'
 
@@ -113,8 +133,7 @@ Deno.serve(async (req: Request) => {
 
     etapas?.forEach((e) => {
       const leads = e.leads as any
-      const seller =
-        sellerMap.get(e.user_id) || (leads && sellerIdMap.get(leads.vendedor_id)) || 'Sistema'
+      const seller = getUserName(e.user_id)
       const cliente = leads?.empresa || 'Cliente Desconhecido'
       const stageName = stageMap.get(e.etapa) || 'Etapa Desconhecida'
 
@@ -124,7 +143,7 @@ Deno.serve(async (req: Request) => {
     })
 
     proposals?.forEach((p) => {
-      const seller = sellerMap.get(p.user_id) || 'Sistema'
+      const seller = getUserName(p.user_id)
       const desc = `Criou proposta #${p.numero} para ${p.cliente}`
       realizadas.push(`<li><strong>${seller}</strong>: ${desc}</li>`)
       realizadasData.push([seller, p.cliente, desc])
@@ -145,6 +164,7 @@ Deno.serve(async (req: Request) => {
 
     roteiroPendentes?.forEach((r) => {
       const leads = r.leads as any
+      if (leads && perdidoStageIds.includes(leads.etapa)) return
       const cliente = leads?.empresa || 'Cliente Desconhecido'
       pendentes.push(
         `<li><strong>${cliente}</strong>: ${r.tipo.toUpperCase()} - ${r.descricao} (Agendado para: ${formatDate(r.data_prevista, true)})</li>`,
@@ -159,6 +179,7 @@ Deno.serve(async (req: Request) => {
 
     followupsPendentes?.forEach((f) => {
       const leads = f.leads as any
+      if (leads && perdidoStageIds.includes(leads.etapa)) return
       const cliente = leads?.empresa || 'Cliente Desconhecido'
       const obs = f.observacoes ? ` - ${f.observacoes}` : ''
       pendentes.push(

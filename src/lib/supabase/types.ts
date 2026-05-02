@@ -812,6 +812,13 @@ export type Database = {
             referencedRelation: 'colaborador'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'employee_documents_legacy_fk'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
         ]
       }
       employees: {
@@ -1281,6 +1288,13 @@ export type Database = {
             columns: ['employee_id']
             isOneToOne: false
             referencedRelation: 'colaborador'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'hr_generated_documents_legacy_fk'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
             referencedColumns: ['id']
           },
           {
@@ -1940,6 +1954,13 @@ export type Database = {
             referencedRelation: 'colaborador'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'time_tracks_legacy_fk'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
+            referencedColumns: ['id']
+          },
         ]
       }
       user_settings: {
@@ -2135,6 +2156,13 @@ export type Database = {
             columns: ['employee_id']
             isOneToOne: false
             referencedRelation: 'colaborador'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'work_scales_legacy_fk'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'employees'
             referencedColumns: ['id']
           },
         ]
@@ -2870,6 +2898,7 @@ export const Constants = {
 //   UNIQUE email_tracking_token_key: UNIQUE (token)
 // Table: employee_documents
 //   FOREIGN KEY employee_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
+//   FOREIGN KEY employee_documents_legacy_fk: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 //   PRIMARY KEY employee_documents_pkey: PRIMARY KEY (id)
 // Table: employees
 //   PRIMARY KEY employees_pkey: PRIMARY KEY (id)
@@ -2880,7 +2909,6 @@ export const Constants = {
 // Table: followup_roteiro
 //   FOREIGN KEY followup_roteiro_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY followup_roteiro_pkey: PRIMARY KEY (id)
-//   CHECK followup_roteiro_tipo_check: CHECK ((tipo = ANY (ARRAY['whatsapp'::text, 'email'::text, 'ligacao'::text])))
 // Table: followups
 //   FOREIGN KEY followups_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY followups_pkey: PRIMARY KEY (id)
@@ -2902,6 +2930,7 @@ export const Constants = {
 //   PRIMARY KEY hr_document_templates_pkey: PRIMARY KEY (id)
 // Table: hr_generated_documents
 //   FOREIGN KEY hr_generated_documents_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
+//   FOREIGN KEY hr_generated_documents_legacy_fk: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 //   PRIMARY KEY hr_generated_documents_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY hr_generated_documents_template_id_fkey: FOREIGN KEY (template_id) REFERENCES hr_document_templates(id) ON DELETE SET NULL
 // Table: hr_profiles
@@ -2953,6 +2982,7 @@ export const Constants = {
 //   PRIMARY KEY testemunhas_pkey: PRIMARY KEY (id)
 // Table: time_tracks
 //   FOREIGN KEY time_tracks_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
+//   FOREIGN KEY time_tracks_legacy_fk: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 //   PRIMARY KEY time_tracks_pkey: PRIMARY KEY (id)
 // Table: user_settings
 //   PRIMARY KEY user_settings_pkey: PRIMARY KEY (user_id)
@@ -2969,6 +2999,7 @@ export const Constants = {
 // Table: work_scales
 //   FOREIGN KEY work_scales_employee_id_fkey: FOREIGN KEY (employee_id) REFERENCES colaborador(id) ON DELETE CASCADE
 //   UNIQUE work_scales_employee_id_period_key: UNIQUE (employee_id, period)
+//   FOREIGN KEY work_scales_legacy_fk: FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 //   PRIMARY KEY work_scales_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---

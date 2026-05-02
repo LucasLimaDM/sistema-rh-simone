@@ -12,7 +12,7 @@
     "public-proposal": 1,
     "create-lead-webhook": 5,
     "schedule-visit": 3,
-    "daily-report": 3,
+    "daily-report": 5,
     "invite-user": 7,
     "generate-hr-pdf": 4
   }

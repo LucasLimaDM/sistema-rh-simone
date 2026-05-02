@@ -19,13 +19,26 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await signIn(email, password)
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
-    } else {
-      navigate('/')
+    try {
+      const { error } = await signIn(email, password)
+      if (error) {
+        let msg = error.message
+        if (msg.toLowerCase().includes('invalid login credentials')) {
+          msg = 'E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.'
+        }
+        toast({ title: 'Acesso Negado', description: msg, variant: 'destructive' })
+      } else {
+        navigate('/')
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro de Autenticação',
+        description: err.message || 'Ocorreu um erro ao tentar entrar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
