@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Users, FileWarning, Briefcase, Plus, Download } from 'lucide-react'
 import { CompliancePieChart, HoursBarChart } from '@/components/dashboard/dashboard-charts'
+import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export default function Index() {
   const { company } = useOutletContext<AppContextType>()
@@ -14,96 +16,155 @@ export default function Index() {
   const [pieData, setPieData] = useState<any[]>([])
   const [barData, setBarData] = useState<any[]>([])
 
-  useEffect(() => {
-    const loadStats = async () => {
-      const { data: empData } = await supabase
-        .from('empresa_contratante')
-        .select('id')
-        .eq('nome_fantasia', company)
-        .single()
+  const [empresaId, setEmpresaId] = useState<string>('')
+  const [lists, setLists] = useState({
+    all: [] as any[],
+    expired: [] as any[],
+    expiring: [] as any[],
+    active: [] as any[],
+  })
 
-      if (!empData) return
-      const empresaId = empData.id
+  const [drillDownInfo, setDrillDownInfo] = useState<{
+    title: string
+    list: any[]
+    type: string
+  } | null>(null)
+  const [editingEmp, setEditingEmp] = useState<any>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
 
-      const { count: emps } = await supabase
-        .from('colaborador')
-        .select('id', { count: 'exact' })
-        .eq('empresa_id', empresaId)
+  const loadStats = useCallback(async () => {
+    const { data: empData } = await supabase
+      .from('empresa_contratante')
+      .select('id')
+      .eq('nome_fantasia', company)
+      .single()
 
-      const todayStr = new Date().toISOString().split('T')[0]
-      const { count: active } = await supabase
-        .from('time_tracks')
-        .select('id, colaborador!inner(empresa_id)', { count: 'exact' })
-        .eq('colaborador.empresa_id', empresaId)
-        .eq('track_date', todayStr)
+    if (!empData) return
+    const empId = empData.id
+    setEmpresaId(empId)
 
-      const { data: allDocs } = await supabase
-        .from('employee_documents')
-        .select('expiry_date, colaborador!inner(empresa_id)')
-        .eq('colaborador.empresa_id', empresaId)
+    const { data: allEmps } = await supabase
+      .from('colaborador')
+      .select('*, cargo(nome, valor_hora, valor_diaria)')
+      .eq('empresa_id', empId)
+      .order('nome_completo')
 
-      let valid = 0,
-        expiringCount = 0,
-        expired = 0
-      const now = new Date()
-      const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const todayStr = new Date().toISOString().split('T')[0]
+    const { data: active } = await supabase
+      .from('time_tracks')
+      .select('employee_id')
+      .in(
+        'employee_id',
+        (allEmps || []).map((e) => e.id),
+      )
+      .eq('track_date', todayStr)
 
-      allDocs?.forEach((d) => {
-        if (!d.expiry_date) {
-          valid++
-          return
-        }
+    const { data: allDocs } = await supabase
+      .from('employee_documents')
+      .select('*')
+      .in(
+        'employee_id',
+        (allEmps || []).map((e) => e.id),
+      )
+
+    let valid = 0,
+      expiringCount = 0,
+      expired = 0
+    const now = new Date()
+    const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    const employeesWithStatus = (allEmps || []).map((emp) => {
+      const eDocs = allDocs?.filter((d) => d.employee_id === emp.id) || []
+      let empExpired = 0
+      let empExpiring = 0
+      eDocs.forEach((d) => {
+        if (!d.expiry_date) return
         const exp = new Date(d.expiry_date)
-        if (exp < now) expired++
-        else if (exp < in30d) expiringCount++
-        else valid++
+        if (exp < now) empExpired++
+        else if (exp < in30d) empExpiring++
       })
-
-      setStats({
-        total: emps?.toString() || '0',
-        pendingDocs: expired.toString(),
-        activeShifts: active?.toString() || '0',
-      })
-      setExpiring(expiringCount)
-
-      setPieData([
-        { name: 'Em dia', value: valid, fill: 'hsl(var(--chart-1))' },
-        { name: 'A Vencer', value: expiringCount, fill: 'hsl(var(--chart-2))' },
-        { name: 'Vencido', value: expired, fill: 'hsl(var(--chart-3))' },
-      ])
-
-      const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
-      const { data: tracks } = await supabase
-        .from('time_tracks')
-        .select('track_date, total_hours, colaborador!inner(empresa_id)')
-        .eq('colaborador.empresa_id', empresaId)
-        .gte('track_date', weekAgo.toISOString().split('T')[0])
-
-      const daysMap: Record<string, number> = {}
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-        daysMap[d.toISOString().split('T')[0]] = 0
+      return {
+        ...emp,
+        employee_documents: eDocs,
+        expiredDocs: empExpired,
+        expiringDocs: empExpiring,
       }
+    })
 
-      tracks?.forEach((t) => {
-        if (daysMap[t.track_date] !== undefined) {
-          daysMap[t.track_date] += Number(t.total_hours) || 0
-        }
-      })
+    const expiredList = employeesWithStatus.filter((e) => e.expiredDocs > 0)
+    const expiringList = employeesWithStatus.filter((e) => e.expiringDocs > 0)
 
-      const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    allDocs?.forEach((d) => {
+      if (!d.expiry_date) {
+        valid++
+        return
+      }
+      const exp = new Date(d.expiry_date)
+      if (exp < now) expired++
+      else if (exp < in30d) expiringCount++
+      else valid++
+    })
 
-      const newBarData = Object.entries(daysMap).map(([dateStr, hours]) => {
-        const d = new Date(`${dateStr}T12:00:00Z`)
-        return {
-          name: daysOfWeek[d.getUTCDay()],
-          hours: Number(hours.toFixed(1)),
-        }
-      })
-      setBarData(newBarData)
+    const activeIds = active?.map((t) => t.employee_id) || []
+    const activeList = employeesWithStatus.filter((e) => activeIds.includes(e.id))
+
+    setLists({
+      all: employeesWithStatus,
+      expired: expiredList,
+      expiring: expiringList,
+      active: activeList,
+    })
+
+    setStats({
+      total: employeesWithStatus.length.toString(),
+      pendingDocs: expired.toString(),
+      activeShifts: activeIds.length.toString(),
+    })
+    setExpiring(expiringCount)
+
+    setPieData([
+      { name: 'Em dia', value: valid, fill: 'hsl(var(--chart-1))' },
+      { name: 'A Vencer', value: expiringCount, fill: 'hsl(var(--chart-2))' },
+      { name: 'Vencido', value: expired, fill: 'hsl(var(--chart-3))' },
+    ])
+
+    const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
+    const { data: tracks } = await supabase
+      .from('time_tracks')
+      .select('track_date, total_hours, employee_id')
+      .in(
+        'employee_id',
+        (allEmps || []).map((e) => e.id),
+      )
+      .gte('track_date', weekAgo.toISOString().split('T')[0])
+
+    const daysMap: Record<string, number> = {}
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      daysMap[d.toISOString().split('T')[0]] = 0
     }
-    loadStats()
+
+    tracks?.forEach((t) => {
+      if (daysMap[t.track_date] !== undefined) {
+        daysMap[t.track_date] += Number(t.total_hours) || 0
+      }
+    })
+
+    const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+    const newBarData = Object.entries(daysMap).map(([dateStr, hours]) => {
+      const d = new Date(`${dateStr}T12:00:00Z`)
+      return {
+        name: daysOfWeek[d.getUTCDay()],
+        hours: Number(hours.toFixed(1)),
+      }
+    })
+    setBarData(newBarData)
   }, [company])
+
+  useEffect(() => {
+    loadStats()
+  }, [loadStats])
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -116,7 +177,13 @@ export default function Index() {
           <Button variant="outline" className="gap-2">
             <Download className="h-4 w-4" /> Relatório Rápido
           </Button>
-          <Button className="gap-2">
+          <Button
+            className="gap-2"
+            onClick={() => {
+              setEditingEmp(null)
+              setIsSheetOpen(true)
+            }}
+          >
             <Plus className="h-4 w-4" /> Novo Colaborador
           </Button>
         </div>
@@ -136,19 +203,37 @@ export default function Index() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total de Colaboradores" value={stats.total} icon={Users} trend="Ativos" />
+        <StatCard
+          title="Total de Colaboradores"
+          value={stats.total}
+          icon={Users}
+          trend="Ativos"
+          onClick={() =>
+            setDrillDownInfo({ title: 'Total de Colaboradores', list: lists.all, type: 'emp' })
+          }
+        />
         <StatCard
           title="Documentos Vencidos"
           value={stats.pendingDocs}
           icon={FileWarning}
           trend="Ação Necessária"
           isWarning={parseInt(stats.pendingDocs) > 0}
+          onClick={() =>
+            setDrillDownInfo({
+              title: 'Colaboradores com Documentos Vencidos',
+              list: lists.expired,
+              type: 'docs',
+            })
+          }
         />
         <StatCard
           title="Turnos Ativos Hoje"
           value={stats.activeShifts}
           icon={Briefcase}
           trend="Normal"
+          onClick={() =>
+            setDrillDownInfo({ title: 'Turnos Ativos Hoje', list: lists.active, type: 'emp' })
+          }
         />
         <StatCard
           title="A Vencer (30d)"
@@ -156,6 +241,13 @@ export default function Index() {
           icon={AlertTriangle}
           trend="Acompanhamento"
           isWarning={expiring > 0}
+          onClick={() =>
+            setDrillDownInfo({
+              title: 'Colaboradores com Documentos a Vencer',
+              list: lists.expiring,
+              type: 'docs',
+            })
+          }
         />
       </div>
 
@@ -178,6 +270,71 @@ export default function Index() {
           </CardContent>
         </Card>
       </div>
+
+      <EmployeeFormSheet
+        open={isSheetOpen}
+        setOpen={setIsSheetOpen}
+        company={company}
+        empresaId={empresaId}
+        employeeToEdit={editingEmp}
+        onSave={() => loadStats()}
+      />
+
+      <Dialog open={!!drillDownInfo} onOpenChange={(open) => !open && setDrillDownInfo(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{drillDownInfo?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {drillDownInfo?.list.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 bg-muted/10 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-muted/40 transition-colors"
+                onClick={() => {
+                  setDrillDownInfo(null)
+                  setEditingEmp(item)
+                  setIsSheetOpen(true)
+                }}
+              >
+                <div>
+                  <p className="font-semibold text-primary">{item.nome_completo}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Cargo: {item.cargo?.nome || item.cargo_nome_snapshot || 'Não definido'}
+                  </p>
+                  {(item.dados_dinamicos?.razao_social || item.email) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {item.dados_dinamicos?.razao_social
+                        ? `Razão Social: ${item.dados_dinamicos.razao_social}`
+                        : `E-mail: ${item.email}`}
+                    </p>
+                  )}
+                </div>
+                {drillDownInfo.type === 'docs' && (
+                  <div className="text-sm text-right shrink-0">
+                    {item.expiredDocs > 0 && (
+                      <span className="text-red-600 block font-semibold px-2 py-1 bg-red-50 rounded-md border border-red-100">
+                        {item.expiredDocs} documento(s) vencido(s)
+                      </span>
+                    )}
+                    {item.expiringDocs > 0 && (
+                      <span className="text-orange-600 block font-semibold px-2 py-1 bg-orange-50 rounded-md border border-orange-100 mt-2">
+                        {item.expiringDocs} documento(s) a vencer
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            {drillDownInfo?.list.length === 0 && (
+              <div className="text-center py-10 px-4 rounded-xl border border-dashed bg-muted/10">
+                <p className="text-muted-foreground text-sm font-medium">
+                  Nenhum colaborador encontrado nesta categoria.
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -188,16 +345,19 @@ function StatCard({
   icon: Icon,
   trend,
   isWarning = false,
+  onClick,
 }: {
   title: string
   value: string
   icon: any
   trend: string
   isWarning?: boolean
+  onClick?: () => void
 }) {
   return (
     <Card
-      className={`shadow-subtle hover:-translate-y-1 transition-all duration-300 ${isWarning ? 'border-accent/50 bg-accent/5' : ''}`}
+      className={`shadow-subtle transition-all duration-300 ${isWarning ? 'border-accent/50 bg-accent/5' : ''} ${onClick ? 'cursor-pointer hover:-translate-y-1 hover:shadow-md' : 'hover:-translate-y-1'}`}
+      onClick={onClick}
     >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">

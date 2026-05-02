@@ -233,7 +233,7 @@ export function EmployeeFormSheet({
         contract_type: data.tipo_colaborador,
         role: selectedRole?.nome || 'Colaborador',
         status: 'ativo',
-        company_name: data.tipo_colaborador === 'MEI' ? data.razao_social : null,
+        company_name: ['MEI', 'Ltda.'].includes(data.tipo_colaborador) ? data.razao_social : null,
       })
       await supabase.from('colaborador').insert({ id: newId, ...payload })
       if (user) await logAudit('colaborador', newId, 'create', user.id, null, payload)
@@ -244,7 +244,7 @@ export function EmployeeFormSheet({
           name: data.nome_completo,
           contract_type: data.tipo_colaborador,
           role: selectedRole?.nome || 'Colaborador',
-          company_name: data.tipo_colaborador === 'MEI' ? data.razao_social : null,
+          company_name: ['MEI', 'Ltda.'].includes(data.tipo_colaborador) ? data.razao_social : null,
         })
         .eq('id', newId)
       await supabase.from('colaborador').update(payload).eq('id', newId)
@@ -342,6 +342,13 @@ export function EmployeeFormSheet({
                   onChange={(e) => setData({ ...data, email: e.target.value })}
                 />
               </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Razão Social</Label>
+                <Input
+                  value={data.razao_social}
+                  onChange={(e) => setData({ ...data, razao_social: e.target.value })}
+                />
+              </div>
             </div>
           </div>
 
@@ -435,18 +442,10 @@ export function EmployeeFormSheet({
                   <SelectContent>
                     <SelectItem value="PF">PF</SelectItem>
                     <SelectItem value="MEI">MEI</SelectItem>
+                    <SelectItem value="Ltda.">Ltda.</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {data.tipo_colaborador === 'MEI' && (
-                <div className="col-span-2 space-y-1.5">
-                  <Label>Razão Social</Label>
-                  <Input
-                    value={data.razao_social}
-                    onChange={(e) => setData({ ...data, razao_social: e.target.value })}
-                  />
-                </div>
-              )}
             </div>
           </div>
 
