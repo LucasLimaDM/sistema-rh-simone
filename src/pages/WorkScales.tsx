@@ -219,11 +219,10 @@ export default function WorkScales() {
                     key={d.toISOString()}
                     className="text-center font-bold min-w-[160px] border-r last:border-r-0"
                   >
-                    <div className="flex flex-col items-center">
-                      <span className="uppercase text-xs text-muted-foreground">
-                        {format(d, 'EEE', { locale: ptBR })}
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="capitalize text-sm font-medium text-foreground whitespace-nowrap">
+                        {format(d, 'EEE - dd/MM', { locale: ptBR }).replace('.', '')}
                       </span>
-                      <span className="text-sm text-foreground">{format(d, 'dd/MM')}</span>
                     </div>
                   </TableHead>
                 ))}
