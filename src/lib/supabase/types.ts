@@ -1970,6 +1970,7 @@ export type Database = {
           configuracoes_alertas: Json | null
           configuracoes_marketing: Json | null
           configuracoes_numeracao: Json | null
+          configuracoes_ponto: Json | null
           configuracoes_relatorios: Json | null
           configuracoes_tabela: Json | null
           configuracoes_temperatura: Json | null
@@ -1988,6 +1989,7 @@ export type Database = {
           configuracoes_alertas?: Json | null
           configuracoes_marketing?: Json | null
           configuracoes_numeracao?: Json | null
+          configuracoes_ponto?: Json | null
           configuracoes_relatorios?: Json | null
           configuracoes_tabela?: Json | null
           configuracoes_temperatura?: Json | null
@@ -2006,6 +2008,7 @@ export type Database = {
           configuracoes_alertas?: Json | null
           configuracoes_marketing?: Json | null
           configuracoes_numeracao?: Json | null
+          configuracoes_ponto?: Json | null
           configuracoes_relatorios?: Json | null
           configuracoes_tabela?: Json | null
           configuracoes_temperatura?: Json | null
@@ -2790,6 +2793,7 @@ export const Constants = {
 //   assinatura_imagem_url: text (nullable)
 //   configuracoes_numeracao: jsonb (nullable, default: '{"ano_vigente": null, "proximo_numero": null}'::jsonb)
 //   configuracoes_whatsapp: jsonb (nullable, default: '{"api_url": "", "enabled": false, "api_token": ""}'::jsonb)
+//   configuracoes_ponto: jsonb (nullable, default: '{"desconto_almoco": 1, "texto_explicativo": "OS HORÁRIOS PODEM SER INTEIROS OU QUEBRADOS DE MEIA EM MEIA HORA, OU SEJA, PODE SER 08:00 OU 08:30 E ASSIM POR DIANTE.\n\n- SE O FUNCIONÁRIO CHEGAR ENTRE 08:00 E 08:10, CALCULAR COMO SE TIVESSE CHEGADO ÀS 08:00.\n- SE O FUNCIONÁRIO CHEGAR ENTRE 08:11 E 08:40, CALCULAR COMO SE TIVESSE CHEGADO 08:30.\n- SE O FUNCIONÁRIO CHEGAR ENTRE 08:41 E 09:10, CALCULAR COMO SE TIVESSE CHEGADO ÀS 09:00 E ASSIM POR DIANTE.\n\nO mesmo raciocínio vale para o horário da saída.\n\nO horário do almoço deve ser sempre descontado no cálculo como 1 hora de almoço, não importa o horário que está preenchido na planilha, esse horário na planilha é simplesmente informativo e controle interno, nao é para pagamento."}'::jsonb)
 // Table: usuario_sistema
 //   id: uuid (not null, default: gen_random_uuid())
 //   email: text (not null)

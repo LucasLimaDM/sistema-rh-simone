@@ -25,20 +25,44 @@ export default function WorkScales() {
   const currentPeriod = new Date().toISOString().slice(0, 7)
 
   const fetchScales = async () => {
+    const { data: empData } = await supabase
+      .from('empresa_contratante')
+      .select('id')
+      .eq('nome_fantasia', company)
+      .single()
+
+    if (!empData) return
+
     const { data: emps } = await supabase
-      .from('employees')
-      .select('id, name, role')
-      .eq('company', company)
+      .from('colaborador')
+      .select('id, nome_completo, cargo_nome_snapshot')
+      .eq('empresa_id', empData.id)
+      .eq('ativo', true)
+
     const { data: scs } = await supabase.from('work_scales').select('*').eq('period', currentPeriod)
 
     if (emps) {
-      const formatted = emps.map((emp) => {
+      const allowedRoles = [
+        'encarregado',
+        'instalador sênior',
+        'instalador júnior',
+        'auxiliar de serviços gerais',
+      ]
+      const excludedRoles = ['almoxarifado', 'veículo']
+
+      const filtered = emps.filter((emp) => {
+        const roleName = (emp.cargo_nome_snapshot || '').toLowerCase()
+        if (excludedRoles.some((ex) => roleName.includes(ex))) return false
+        return allowedRoles.some((al) => roleName.includes(al))
+      })
+
+      const formatted = filtered.map((emp) => {
         const empScale = scs?.find((s: any) => s.employee_id === emp.id)
         return {
           id: empScale?.id || `new-${emp.id}`,
           employee_id: emp.id,
-          employeeName: emp.name,
-          role: emp.role,
+          employeeName: emp.nome_completo,
+          role: emp.cargo_nome_snapshot,
           schedule: empScale?.schedule || {
             Seg: '08:00 - 17:00',
             Ter: '08:00 - 17:00',
@@ -50,6 +74,8 @@ export default function WorkScales() {
           },
         }
       })
+
+      formatted.sort((a, b) => a.employeeName.localeCompare(b.employeeName))
       setScales(formatted)
     }
   }
