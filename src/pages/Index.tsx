@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Users, FileWarning, Briefcase, Plus, Download } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { AlertTriangle, Users, FileWarning, Briefcase, Plus, Download, Search } from 'lucide-react'
 import { CompliancePieChart, HoursBarChart } from '@/components/dashboard/dashboard-charts'
 import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -29,6 +30,7 @@ export default function Index() {
     list: any[]
     type: string
   } | null>(null)
+  const [drillDownSearch, setDrillDownSearch] = useState('')
   const [editingEmp, setEditingEmp] = useState<any>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
@@ -43,11 +45,16 @@ export default function Index() {
     const empId = empData.id
     setEmpresaId(empId)
 
-    const { data: allEmps } = await supabase
+    const { data: allEmpsRaw } = await supabase
       .from('colaborador')
       .select('*, cargo(nome, valor_hora, valor_diaria)')
-      .eq('empresa_id', empId)
       .order('nome_completo')
+
+    const allEmps =
+      allEmpsRaw?.filter((e) => {
+        const vinculadas = e.dados_dinamicos?.empresas_vinculadas || []
+        return e.empresa_id === empId || vinculadas.includes(empId)
+      }) || []
 
     const todayStr = new Date().toISOString().split('T')[0]
     const { data: active } = await supabase
@@ -55,7 +62,7 @@ export default function Index() {
       .select('employee_id')
       .in(
         'employee_id',
-        (allEmps || []).map((e) => e.id),
+        allEmps.map((e) => e.id),
       )
       .eq('track_date', todayStr)
 
@@ -64,7 +71,7 @@ export default function Index() {
       .select('*')
       .in(
         'employee_id',
-        (allEmps || []).map((e) => e.id),
+        allEmps.map((e) => e.id),
       )
 
     let valid = 0,
@@ -73,7 +80,7 @@ export default function Index() {
     const now = new Date()
     const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-    const employeesWithStatus = (allEmps || []).map((emp) => {
+    const employeesWithStatus = allEmps.map((emp) => {
       const eDocs = allDocs?.filter((d) => d.employee_id === emp.id) || []
       let empExpired = 0
       let empExpiring = 0
@@ -134,7 +141,7 @@ export default function Index() {
       .select('track_date, total_hours, employee_id')
       .in(
         'employee_id',
-        (allEmps || []).map((e) => e.id),
+        allEmps.map((e) => e.id),
       )
       .gte('track_date', weekAgo.toISOString().split('T')[0])
 
@@ -165,6 +172,25 @@ export default function Index() {
   useEffect(() => {
     loadStats()
   }, [loadStats])
+
+  const handleOpenDrillDown = (title: string, list: any[], type: string) => {
+    setDrillDownSearch('')
+    setDrillDownInfo({ title, list, type })
+  }
+
+  const filteredDrillDown = useMemo(() => {
+    if (!drillDownInfo) return []
+    if (!drillDownSearch) return drillDownInfo.list
+    const s = drillDownSearch.toLowerCase()
+    return drillDownInfo.list.filter(
+      (item) =>
+        item.nome_completo?.toLowerCase().includes(s) ||
+        item.email?.toLowerCase().includes(s) ||
+        item.cpf?.includes(s) ||
+        item.cargo_nome_snapshot?.toLowerCase().includes(s) ||
+        item.cargo?.nome?.toLowerCase().includes(s),
+    )
+  }, [drillDownInfo, drillDownSearch])
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -208,9 +234,7 @@ export default function Index() {
           value={stats.total}
           icon={Users}
           trend="Ativos"
-          onClick={() =>
-            setDrillDownInfo({ title: 'Total de Colaboradores', list: lists.all, type: 'emp' })
-          }
+          onClick={() => handleOpenDrillDown('Total de Colaboradores', lists.all, 'emp')}
         />
         <StatCard
           title="Documentos Vencidos"
@@ -219,11 +243,7 @@ export default function Index() {
           trend="Ação Necessária"
           isWarning={parseInt(stats.pendingDocs) > 0}
           onClick={() =>
-            setDrillDownInfo({
-              title: 'Colaboradores com Documentos Vencidos',
-              list: lists.expired,
-              type: 'docs',
-            })
+            handleOpenDrillDown('Colaboradores com Documentos Vencidos', lists.expired, 'docs')
           }
         />
         <StatCard
@@ -231,9 +251,7 @@ export default function Index() {
           value={stats.activeShifts}
           icon={Briefcase}
           trend="Normal"
-          onClick={() =>
-            setDrillDownInfo({ title: 'Turnos Ativos Hoje', list: lists.active, type: 'emp' })
-          }
+          onClick={() => handleOpenDrillDown('Turnos Ativos Hoje', lists.active, 'emp')}
         />
         <StatCard
           title="A Vencer (30d)"
@@ -242,11 +260,7 @@ export default function Index() {
           trend="Acompanhamento"
           isWarning={expiring > 0}
           onClick={() =>
-            setDrillDownInfo({
-              title: 'Colaboradores com Documentos a Vencer',
-              list: lists.expiring,
-              type: 'docs',
-            })
+            handleOpenDrillDown('Colaboradores com Documentos a Vencer', lists.expiring, 'docs')
           }
         />
       </div>
@@ -281,12 +295,21 @@ export default function Index() {
       />
 
       <Dialog open={!!drillDownInfo} onOpenChange={(open) => !open && setDrillDownInfo(null)}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-4 border-b shrink-0 space-y-4">
             <DialogTitle>{drillDownInfo?.title}</DialogTitle>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar colaborador..."
+                value={drillDownSearch}
+                onChange={(e) => setDrillDownSearch(e.target.value)}
+                className="pl-9 bg-muted/50"
+              />
+            </div>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
-            {drillDownInfo?.list.map((item) => (
+          <div className="p-6 pt-2 overflow-y-auto flex-1 space-y-3">
+            {filteredDrillDown.map((item) => (
               <div
                 key={item.id}
                 className="p-4 bg-muted/10 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-muted/40 transition-colors"
@@ -309,7 +332,7 @@ export default function Index() {
                     </p>
                   )}
                 </div>
-                {drillDownInfo.type === 'docs' && (
+                {drillDownInfo?.type === 'docs' && (
                   <div className="text-sm text-right shrink-0">
                     {item.expiredDocs > 0 && (
                       <span className="text-red-600 block font-semibold px-2 py-1 bg-red-50 rounded-md border border-red-100">
@@ -325,10 +348,10 @@ export default function Index() {
                 )}
               </div>
             ))}
-            {drillDownInfo?.list.length === 0 && (
-              <div className="text-center py-10 px-4 rounded-xl border border-dashed bg-muted/10">
+            {filteredDrillDown.length === 0 && (
+              <div className="text-center py-10 px-4 rounded-xl border border-dashed bg-muted/10 mt-4">
                 <p className="text-muted-foreground text-sm font-medium">
-                  Nenhum colaborador encontrado nesta categoria.
+                  Nenhum colaborador encontrado com os filtros aplicados.
                 </p>
               </div>
             )}

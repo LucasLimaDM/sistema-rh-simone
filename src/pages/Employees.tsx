@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -14,11 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Search, Plus, UserCircle, Trash2, Edit2, Send, Briefcase } from 'lucide-react'
+import { Search, Plus, UserCircle, Trash2, Edit2, Briefcase } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
-import { Badge } from '@/components/ui/badge'
 import { Link } from 'react-router-dom'
 import { logAudit } from '@/lib/audit'
 import { useAuth } from '@/hooks/use-auth'
@@ -30,7 +28,6 @@ export default function Employees() {
   const [employees, setEmployees] = useState<any[]>([])
   const [empresaId, setEmpresaId] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingEmp, setEditingEmp] = useState<any>(null)
   const { toast } = useToast()
@@ -42,15 +39,20 @@ export default function Employees() {
       .select('id')
       .eq('nome_fantasia', company)
       .single()
+
     if (empData) {
       setEmpresaId(empData.id)
-      const { data } = await supabase
+      const { data: allEmpsRaw } = await supabase
         .from('colaborador')
         .select('*, cargo(nome, valor_hora, valor_diaria)')
-        .eq('empresa_id', empData.id)
         .order('nome_completo')
-      if (data) {
-        // Fetch documents from legacy employee_documents mapped by ID
+
+      if (allEmpsRaw) {
+        const data = allEmpsRaw.filter((e) => {
+          const vinculadas = e.dados_dinamicos?.empresas_vinculadas || []
+          return e.empresa_id === empData.id || vinculadas.includes(empData.id)
+        })
+
         const empIds = data.map((e) => e.id)
         const { data: docs } = await supabase
           .from('employee_documents')
@@ -82,7 +84,6 @@ export default function Employees() {
       }
     }
     setLoading(false)
-    setSelectedIds([])
   }
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -35,6 +36,7 @@ interface DocState {
 }
 
 const DOCUMENT_TYPES = [
+  'CONTRATOS',
   'ASO',
   'NR-35',
   'OS',
@@ -91,16 +93,54 @@ export function EmployeeFormSheet({
   const [loading, setLoading] = useState(false)
   const [roles, setRoles] = useState<any[]>([])
 
-  useEffect(() => {
-    if (open && empresaId) {
-      supabase
-        .from('cargo')
-        .select('*')
-        .eq('empresa_id', empresaId)
-        .then(({ data }) => {
-          if (data) setRoles(data)
-        })
+  const [allCompanies, setAllCompanies] = useState<any[]>([])
+  const [selectedEmpresas, setSelectedEmpresas] = useState<string[]>([])
 
+  useEffect(() => {
+    if (open) {
+      supabase
+        .from('empresa_contratante')
+        .select('id, nome_fantasia')
+        .then(({ data }) => {
+          if (data) setAllCompanies(data)
+        })
+      if (employeeToEdit) {
+        const vinculadas = employeeToEdit.dados_dinamicos?.empresas_vinculadas || [
+          employeeToEdit.empresa_id,
+        ]
+        setSelectedEmpresas(vinculadas)
+      } else {
+        setSelectedEmpresas(empresaId ? [empresaId] : [])
+      }
+    }
+  }, [open, employeeToEdit, empresaId])
+
+  useEffect(() => {
+    if (open && allCompanies.length > 0) {
+      const empIdsToFetch =
+        selectedEmpresas.length > 0 ? selectedEmpresas : empresaId ? [empresaId] : []
+      if (empIdsToFetch.length > 0) {
+        supabase
+          .from('cargo')
+          .select('*')
+          .in('empresa_id', empIdsToFetch)
+          .then(({ data }) => {
+            if (data) {
+              const roleOptions = data.map((r) => ({
+                ...r,
+                displayName: `${r.nome} (${allCompanies.find((c) => c.id === r.empresa_id)?.nome_fantasia || '?'})`,
+              }))
+              setRoles(roleOptions)
+            }
+          })
+      } else {
+        setRoles([])
+      }
+    }
+  }, [open, selectedEmpresas, empresaId, allCompanies])
+
+  useEffect(() => {
+    if (open) {
       if (employeeToEdit) {
         setData({
           nome_completo: employeeToEdit.nome_completo || '',
@@ -164,7 +204,7 @@ export function EmployeeFormSheet({
         setDocs({})
       }
     }
-  }, [open, employeeToEdit, empresaId])
+  }, [open, employeeToEdit])
 
   const handleCep = async (val: string) => {
     const masked = maskCEP(val)
@@ -189,12 +229,19 @@ export function EmployeeFormSheet({
   }
 
   const handleSave = async () => {
+    if (selectedEmpresas.length === 0) return
     setLoading(true)
+    const primaryEmpresaId = selectedEmpresas[0]
     const selectedRole = roles.find((r) => r.id === data.cargo_id)
     const newId = employeeToEdit?.id || crypto.randomUUID()
+    const companyNames =
+      allCompanies
+        .filter((c) => selectedEmpresas.includes(c.id))
+        .map((c) => c.nome_fantasia)
+        .join(', ') || company
 
     const payload = {
-      empresa_id: empresaId,
+      empresa_id: primaryEmpresaId,
       nome_completo: data.nome_completo,
       email: data.email,
       telefone: data.telefone,
@@ -221,6 +268,7 @@ export function EmployeeFormSheet({
         admission_date: data.admission_date,
         observations: data.observations,
         razao_social: data.razao_social,
+        empresas_vinculadas: selectedEmpresas,
       },
       ativo: true,
     }
@@ -229,7 +277,7 @@ export function EmployeeFormSheet({
       await supabase.from('employees').insert({
         id: newId,
         name: data.nome_completo,
-        company: company,
+        company: companyNames,
         contract_type: data.tipo_colaborador,
         role: selectedRole?.nome || 'Colaborador',
         status: 'ativo',
@@ -244,6 +292,7 @@ export function EmployeeFormSheet({
           name: data.nome_completo,
           contract_type: data.tipo_colaborador,
           role: selectedRole?.nome || 'Colaborador',
+          company: companyNames,
           company_name: ['MEI', 'Ltda.'].includes(data.tipo_colaborador) ? data.razao_social : null,
         })
         .eq('id', newId)
@@ -299,6 +348,27 @@ export function EmployeeFormSheet({
           <SheetTitle>{employeeToEdit ? 'Editar Colaborador' : 'Novo Colaborador'}</SheetTitle>
         </SheetHeader>
         <div className="p-6 space-y-8 flex-1">
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-primary">Empresas Vinculadas</h4>
+            <div className="flex flex-wrap gap-6 p-3 border rounded-md bg-muted/20">
+              {allCompanies.map((c) => (
+                <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={selectedEmpresas.includes(c.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) setSelectedEmpresas([...selectedEmpresas, c.id])
+                      else setSelectedEmpresas(selectedEmpresas.filter((id) => id !== c.id))
+                    }}
+                  />
+                  <span className="text-sm font-medium">{c.nome_fantasia}</span>
+                </label>
+              ))}
+            </div>
+            {selectedEmpresas.length === 0 && (
+              <p className="text-xs text-destructive mt-1">Selecione pelo menos uma empresa.</p>
+            )}
+          </div>
+
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-primary">Dados Pessoais</h4>
             <div className="grid grid-cols-2 gap-3">
@@ -424,7 +494,7 @@ export function EmployeeFormSheet({
                   <SelectContent>
                     {roles.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
-                        {r.nome}
+                        {r.displayName}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -535,7 +605,12 @@ export function EmployeeFormSheet({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button disabled={loading || !data.nome_completo || !data.cargo_id} onClick={handleSave}>
+          <Button
+            disabled={
+              loading || !data.nome_completo || !data.cargo_id || selectedEmpresas.length === 0
+            }
+            onClick={handleSave}
+          >
             {loading ? 'Salvando...' : 'Salvar'}
           </Button>
         </SheetFooter>
