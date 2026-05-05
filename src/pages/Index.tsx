@@ -5,13 +5,26 @@ import pb from '@/lib/pocketbase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Users, FileText, Briefcase, Plus, Download, Search, Building2 } from 'lucide-react'
+import {
+  Users,
+  FileText,
+  Briefcase,
+  Plus,
+  Download,
+  Search,
+  Building2,
+  AlertCircle,
+} from 'lucide-react'
 import { CompliancePieChart, HoursBarChart } from '@/components/dashboard/dashboard-charts'
 import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export default function Index() {
   const { company } = useOutletContext<AppContextType>()
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const [stats, setStats] = useState({
     total: '0',
     totalDocs: '0',
@@ -39,8 +52,28 @@ export default function Index() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
     try {
-      const companies = await pb.collection('companies').getFullList()
+      const fetchWithTimeout = <T,>(promise: Promise<T>): Promise<T> => {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            reject(new Error('TIMEOUT'))
+          }, 10000)
+          promise
+            .then((res) => {
+              clearTimeout(timer)
+              resolve(res)
+            })
+            .catch((err) => {
+              clearTimeout(timer)
+              reject(err)
+            })
+        })
+      }
+
+      const companies = await fetchWithTimeout(pb.collection('companies').getFullList())
       const currentCompany = companies.find((c) => c.name === company)
       const activeCompaniesCount = companies.filter((c) => c.active).length
 
@@ -50,18 +83,22 @@ export default function Index() {
 
       if (currentCompany) {
         setEmpresaId(currentCompany.id)
-        allEmps = await pb.collection('collaborators').getFullList({
-          filter: `company_id = '${currentCompany.id}'`,
-          expand: 'role_id',
-        })
+        allEmps = await fetchWithTimeout(
+          pb.collection('collaborators').getFullList({
+            filter: `company_id = '${currentCompany.id}'`,
+            expand: 'role_id',
+          }),
+        )
 
         if (allEmps.length > 0) {
           const empIds = allEmps.map((e) => e.id)
 
-          const [allDocs, allScales] = await Promise.all([
-            pb.collection('documents').getFullList(),
-            pb.collection('work_scales').getFullList(),
-          ])
+          const [allDocs, allScales] = await fetchWithTimeout(
+            Promise.all([
+              pb.collection('documents').getFullList(),
+              pb.collection('work_scales').getFullList(),
+            ]),
+          )
 
           companyDocs = allDocs.filter((d) => empIds.includes(d.collaborator_id))
 
@@ -134,7 +171,21 @@ export default function Index() {
       })
       setBarData(newBarData)
     } catch (err) {
-      console.error(err)
+      console.error('Erro ao buscar dados do dashboard:', err)
+      setError('Erro ao carregar dados. Tente recarregar a página.')
+
+      // Maintain empty layout rendering
+      setStats({
+        total: '0',
+        totalDocs: '0',
+        activeShifts: '0',
+        activeCompanies: '0',
+      })
+      setLists({ all: [], docs: [], active: [], companies: [] })
+      setPieData([])
+      setBarData([])
+    } finally {
+      setIsLoading(false)
     }
   }, [company])
 
@@ -189,11 +240,12 @@ export default function Index() {
           <p className="text-muted-foreground mt-1">Visão geral da operação para {company}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" disabled={isLoading || !!error}>
             <Download className="h-4 w-4" /> Relatório Rápido
           </Button>
           <Button
             className="gap-2"
+            disabled={isLoading || !!error}
             onClick={() => {
               setEditingEmp(null)
               setIsSheetOpen(true)
@@ -204,34 +256,61 @@ export default function Index() {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total de Colaboradores"
           value={stats.total}
           icon={Users}
           trend="Ativos"
-          onClick={() => handleOpenDrillDown('Total de Colaboradores', lists.all, 'emp')}
+          isLoading={isLoading}
+          onClick={
+            !isLoading && !error
+              ? () => handleOpenDrillDown('Total de Colaboradores', lists.all, 'emp')
+              : undefined
+          }
         />
         <StatCard
           title="Total de Documentos"
           value={stats.totalDocs}
           icon={FileText}
           trend="Cadastrados"
-          onClick={() => handleOpenDrillDown('Total de Documentos', lists.docs, 'docs')}
+          isLoading={isLoading}
+          onClick={
+            !isLoading && !error
+              ? () => handleOpenDrillDown('Total de Documentos', lists.docs, 'docs')
+              : undefined
+          }
         />
         <StatCard
           title="Turnos Ativos Hoje"
           value={stats.activeShifts}
           icon={Briefcase}
           trend="Normal"
-          onClick={() => handleOpenDrillDown('Turnos Ativos Hoje', lists.active, 'scale')}
+          isLoading={isLoading}
+          onClick={
+            !isLoading && !error
+              ? () => handleOpenDrillDown('Turnos Ativos Hoje', lists.active, 'scale')
+              : undefined
+          }
         />
         <StatCard
           title="Empresas Ativas"
           value={stats.activeCompanies}
           icon={Building2}
           trend="Visão Geral"
-          onClick={() => handleOpenDrillDown('Empresas Ativas', lists.companies, 'company')}
+          isLoading={isLoading}
+          onClick={
+            !isLoading && !error
+              ? () => handleOpenDrillDown('Empresas Ativas', lists.companies, 'company')
+              : undefined
+          }
         />
       </div>
 
@@ -241,7 +320,11 @@ export default function Index() {
             <CardTitle className="text-lg">Distribuição de Documentos</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center pb-2">
-            {lists.docs.length > 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center h-[250px] w-full">
+                <Skeleton className="h-[200px] w-[200px] rounded-full" />
+              </div>
+            ) : lists.docs.length > 0 ? (
               <CompliancePieChart data={pieData} />
             ) : (
               <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
@@ -256,7 +339,13 @@ export default function Index() {
             <CardTitle className="text-lg">Horas Trabalhadas na Semana</CardTitle>
           </CardHeader>
           <CardContent>
-            {barData.length > 0 && barData.some((d) => d.hours > 0) ? (
+            {isLoading ? (
+              <div className="flex items-end justify-between h-[250px] w-full gap-4 pt-10 px-4 pb-8">
+                {[40, 70, 45, 90, 60, 30, 50].map((h, i) => (
+                  <Skeleton key={i} className="w-full rounded-t-sm" style={{ height: `${h}%` }} />
+                ))}
+              </div>
+            ) : barData.length > 0 && barData.some((d) => d.hours > 0) ? (
               <HoursBarChart data={barData} />
             ) : (
               <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
@@ -369,6 +458,7 @@ function StatCard({
   trend,
   isWarning = false,
   onClick,
+  isLoading = false,
 }: {
   title: string
   value: string
@@ -376,6 +466,7 @@ function StatCard({
   trend: string
   isWarning?: boolean
   onClick?: () => void
+  isLoading?: boolean
 }) {
   return (
     <Card
@@ -391,11 +482,19 @@ function StatCard({
           </div>
         </div>
         <div className="mt-4">
-          <p className="text-3xl font-bold tracking-tight">{value}</p>
+          {isLoading ? (
+            <Skeleton className="h-9 w-16 mb-1" />
+          ) : (
+            <p className="text-3xl font-bold tracking-tight">{value}</p>
+          )}
           <p className="text-sm font-medium text-muted-foreground mt-1">{title}</p>
         </div>
         <div className="mt-4 flex items-center text-xs font-medium">
-          <span className={isWarning ? 'text-accent' : 'text-primary'}>{trend}</span>
+          {isLoading ? (
+            <Skeleton className="h-4 w-16" />
+          ) : (
+            <span className={isWarning ? 'text-accent' : 'text-primary'}>{trend}</span>
+          )}
         </div>
       </CardContent>
     </Card>
