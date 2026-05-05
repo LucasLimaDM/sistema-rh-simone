@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 interface AuthContextType {
   user: User | null
   session: Session | null
+  role: string | null
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
   loading: boolean
@@ -21,21 +22,58 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const fetchRole = async (u: User | null) => {
+      if (!u) {
+        setRole(null)
+        return
+      }
+      let foundRole = null
+      const { data: hrProfile } = await supabase
+        .from('hr_profiles')
+        .select('*')
+        .eq('email', u.email)
+        .maybeSingle()
+      if (hrProfile) {
+        foundRole = hrProfile.role
+      } else {
+        const { data: sysUser } = await supabase
+          .from('usuario_sistema')
+          .select('tipo_usuario')
+          .eq('email', u.email)
+          .maybeSingle()
+        if (sysUser) foundRole = sysUser.tipo_usuario
+      }
+      setRole(foundRole || 'Usuario')
+    }
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      if (session?.user) {
+        await fetchRole(session.user)
+      } else {
+        setRole(null)
+      }
       setLoading(false)
     })
-    supabase.auth.getSession().then(({ data: { session } }) => {
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      if (session?.user) {
+        await fetchRole(session.user)
+      } else {
+        setRole(null)
+      }
       setLoading(false)
     })
+
     return () => subscription.unsubscribe()
   }, [])
 

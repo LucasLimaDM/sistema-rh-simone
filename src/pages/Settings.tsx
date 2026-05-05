@@ -35,7 +35,7 @@ import { logAudit } from '@/lib/audit'
 import { maskCPF } from '@/lib/utils'
 
 export default function Settings() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const [profiles, setProfiles] = useState<any[]>([])
   const [witnesses, setWitnesses] = useState<any[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
@@ -76,9 +76,6 @@ export default function Settings() {
     const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
     if (data) {
       setProfiles(data)
-      if (user) {
-        setIsAdmin(user.role === 'Admin')
-      }
     }
   }
 
@@ -109,7 +106,8 @@ export default function Settings() {
     fetchProfiles()
     fetchWitnesses()
     if (user) fetchUserSettings()
-  }, [user])
+    setIsAdmin(role === 'Admin')
+  }, [user, role])
 
   const handleSave = async () => {
     if (newPassword && (user?.id === formData.id || user?.email === formData.email)) {

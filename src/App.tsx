@@ -25,10 +25,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 }
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth()
+  const { user, role, loading } = useAuth()
   if (loading) return <div className="flex h-screen items-center justify-center">Carregando...</div>
   if (!user) return <Navigate to="/login" />
-  if (user.role !== 'Admin') return <Navigate to="/" />
+  if (role !== 'Admin') return <Navigate to="/" />
   return <>{children}</>
 }
 
