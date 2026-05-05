@@ -60,7 +60,7 @@ export default function Index() {
         return new Promise((resolve, reject) => {
           const timer = setTimeout(() => {
             reject(new Error('TIMEOUT'))
-          }, 10000)
+          }, 3000)
           promise
             .then((res) => {
               clearTimeout(timer)
@@ -172,7 +172,7 @@ export default function Index() {
       setBarData(newBarData)
     } catch (err) {
       console.error('Erro ao buscar dados do dashboard:', err)
-      setError('Erro ao carregar dados. Tente recarregar a página.')
+      setError(null) // Stay silent on error to prevent intrusive popups
 
       // Maintain empty layout rendering
       setStats({
@@ -190,7 +190,10 @@ export default function Index() {
   }, [company])
 
   useEffect(() => {
-    loadStats()
+    const delayTimer = setTimeout(() => {
+      loadStats()
+    }, 2000)
+    return () => clearTimeout(delayTimer)
   }, [loadStats])
 
   const handleOpenDrillDown = (title: string, list: any[], type: string) => {
@@ -255,13 +258,6 @@ export default function Index() {
           </Button>
         </div>
       </div>
-
-      {error && (
-        <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-xl border border-destructive/20 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5" />
-          <p className="font-medium">{error}</p>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
