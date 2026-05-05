@@ -1,28 +1,32 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AlertTriangle, Users, FileWarning, Briefcase, Plus, Download, Search } from 'lucide-react'
+import { Users, FileText, Briefcase, Plus, Download, Search, Building2 } from 'lucide-react'
 import { CompliancePieChart, HoursBarChart } from '@/components/dashboard/dashboard-charts'
 import { EmployeeFormSheet } from '@/components/employees/employee-form-sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export default function Index() {
   const { company } = useOutletContext<AppContextType>()
-  const [stats, setStats] = useState({ total: '0', pendingDocs: '0', activeShifts: '0' })
-  const [expiring, setExpiring] = useState(0)
+  const [stats, setStats] = useState({
+    total: '0',
+    totalDocs: '0',
+    activeShifts: '0',
+    activeCompanies: '0',
+  })
   const [pieData, setPieData] = useState<any[]>([])
   const [barData, setBarData] = useState<any[]>([])
 
   const [empresaId, setEmpresaId] = useState<string>('')
   const [lists, setLists] = useState({
     all: [] as any[],
-    expired: [] as any[],
-    expiring: [] as any[],
+    docs: [] as any[],
     active: [] as any[],
+    companies: [] as any[],
   })
 
   const [drillDownInfo, setDrillDownInfo] = useState<{
@@ -35,138 +39,103 @@ export default function Index() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
-    const { data: empData } = await supabase
-      .from('empresa_contratante')
-      .select('id')
-      .eq('nome_fantasia', company)
-      .single()
+    try {
+      const companies = await pb.collection('companies').getFullList()
+      const currentCompany = companies.find((c) => c.name === company)
+      const activeCompaniesCount = companies.filter((c) => c.active).length
 
-    if (!empData) return
-    const empId = empData.id
-    setEmpresaId(empId)
+      let allEmps: any[] = []
+      let companyDocs: any[] = []
+      let companyScales: any[] = []
 
-    const { data: allEmpsRaw } = await supabase
-      .from('colaborador')
-      .select('*, cargo(nome, valor_hora, valor_diaria)')
-      .order('nome_completo')
+      if (currentCompany) {
+        setEmpresaId(currentCompany.id)
+        allEmps = await pb.collection('collaborators').getFullList({
+          filter: `company_id = '${currentCompany.id}'`,
+          expand: 'role_id',
+        })
 
-    const allEmps =
-      allEmpsRaw?.filter((e) => {
-        const vinculadas = e.dados_dinamicos?.empresas_vinculadas || []
-        return e.empresa_id === empId || vinculadas.includes(empId)
-      }) || []
+        if (allEmps.length > 0) {
+          const empIds = allEmps.map((e) => e.id)
 
-    const todayStr = new Date().toISOString().split('T')[0]
-    const { data: active } = await supabase
-      .from('time_tracks')
-      .select('employee_id')
-      .in(
-        'employee_id',
-        allEmps.map((e) => e.id),
-      )
-      .eq('track_date', todayStr)
+          const [allDocs, allScales] = await Promise.all([
+            pb.collection('documents').getFullList(),
+            pb.collection('work_scales').getFullList(),
+          ])
 
-    const { data: allDocs } = await supabase
-      .from('employee_documents')
-      .select('*')
-      .in(
-        'employee_id',
-        allEmps.map((e) => e.id),
-      )
+          companyDocs = allDocs.filter((d) => empIds.includes(d.collaborator_id))
 
-    let valid = 0,
-      expiringCount = 0,
-      expired = 0
-    const now = new Date()
-    const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+          const weekAgo = new Date()
+          weekAgo.setDate(weekAgo.getDate() - 6)
+          weekAgo.setHours(0, 0, 0, 0)
 
-    const employeesWithStatus = allEmps.map((emp) => {
-      const eDocs = allDocs?.filter((d) => d.employee_id === emp.id) || []
-      let empExpired = 0
-      let empExpiring = 0
-      eDocs.forEach((d) => {
-        if (!d.expiry_date) return
-        const exp = new Date(d.expiry_date)
-        if (exp < now) empExpired++
-        else if (exp < in30d) empExpiring++
+          companyScales = allScales.filter((s) => {
+            if (!empIds.includes(s.collaborator_id)) return false
+            const sDate = new Date(s.date)
+            return sDate >= weekAgo
+          })
+        }
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0]
+      const todayScales = companyScales.filter((s) => s.date.startsWith(todayStr) && !s.is_day_off)
+
+      setStats({
+        total: allEmps.length.toString(),
+        totalDocs: companyDocs.length.toString(),
+        activeShifts: todayScales.length.toString(),
+        activeCompanies: activeCompaniesCount.toString(),
       })
-      return {
-        ...emp,
-        employee_documents: eDocs,
-        expiredDocs: empExpired,
-        expiringDocs: empExpiring,
+
+      setLists({
+        all: allEmps,
+        docs: companyDocs,
+        active: todayScales.map((s) => {
+          const emp = allEmps.find((e) => e.id === s.collaborator_id)
+          return { ...s, collaborator: emp }
+        }),
+        companies: companies.filter((c) => c.active),
+      })
+
+      const typeCounts = { Contract: 0, ID: 0, Other: 0 }
+      companyDocs.forEach((d) => {
+        if (d.type === 'Contract') typeCounts.Contract++
+        else if (d.type === 'ID') typeCounts.ID++
+        else typeCounts.Other++
+      })
+
+      setPieData([
+        { name: 'Contratos', value: typeCounts.Contract, fill: 'hsl(var(--chart-1))' },
+        { name: 'Documentos (ID)', value: typeCounts.ID, fill: 'hsl(var(--chart-2))' },
+        { name: 'Outros', value: typeCounts.Other, fill: 'hsl(var(--chart-3))' },
+      ])
+
+      const daysMap: Record<string, number> = {}
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        daysMap[d.toISOString().split('T')[0]] = 0
       }
-    })
 
-    const expiredList = employeesWithStatus.filter((e) => e.expiredDocs > 0)
-    const expiringList = employeesWithStatus.filter((e) => e.expiringDocs > 0)
+      companyScales.forEach((s) => {
+        const dStr = s.date.split(' ')[0]
+        if (daysMap[dStr] !== undefined && !s.is_day_off) {
+          daysMap[dStr] += Number(s.hours) || 0
+        }
+      })
 
-    allDocs?.forEach((d) => {
-      if (!d.expiry_date) {
-        valid++
-        return
-      }
-      const exp = new Date(d.expiry_date)
-      if (exp < now) expired++
-      else if (exp < in30d) expiringCount++
-      else valid++
-    })
-
-    const activeIds = active?.map((t) => t.employee_id) || []
-    const activeList = employeesWithStatus.filter((e) => activeIds.includes(e.id))
-
-    setLists({
-      all: employeesWithStatus,
-      expired: expiredList,
-      expiring: expiringList,
-      active: activeList,
-    })
-
-    setStats({
-      total: employeesWithStatus.length.toString(),
-      pendingDocs: expired.toString(),
-      activeShifts: activeIds.length.toString(),
-    })
-    setExpiring(expiringCount)
-
-    setPieData([
-      { name: 'Em dia', value: valid, fill: 'hsl(var(--chart-1))' },
-      { name: 'A Vencer', value: expiringCount, fill: 'hsl(var(--chart-2))' },
-      { name: 'Vencido', value: expired, fill: 'hsl(var(--chart-3))' },
-    ])
-
-    const weekAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
-    const { data: tracks } = await supabase
-      .from('time_tracks')
-      .select('track_date, total_hours, employee_id')
-      .in(
-        'employee_id',
-        allEmps.map((e) => e.id),
-      )
-      .gte('track_date', weekAgo.toISOString().split('T')[0])
-
-    const daysMap: Record<string, number> = {}
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-      daysMap[d.toISOString().split('T')[0]] = 0
+      const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+      const newBarData = Object.entries(daysMap).map(([dateStr, hours]) => {
+        const d = new Date(`${dateStr}T12:00:00Z`)
+        return {
+          name: daysOfWeek[d.getUTCDay()],
+          hours: Number(hours.toFixed(1)),
+        }
+      })
+      setBarData(newBarData)
+    } catch (err) {
+      console.error(err)
     }
-
-    tracks?.forEach((t) => {
-      if (daysMap[t.track_date] !== undefined) {
-        daysMap[t.track_date] += Number(t.total_hours) || 0
-      }
-    })
-
-    const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-
-    const newBarData = Object.entries(daysMap).map(([dateStr, hours]) => {
-      const d = new Date(`${dateStr}T12:00:00Z`)
-      return {
-        name: daysOfWeek[d.getUTCDay()],
-        hours: Number(hours.toFixed(1)),
-      }
-    })
-    setBarData(newBarData)
   }, [company])
 
   useEffect(() => {
@@ -182,15 +151,35 @@ export default function Index() {
     if (!drillDownInfo) return []
     if (!drillDownSearch) return drillDownInfo.list
     const s = drillDownSearch.toLowerCase()
-    return drillDownInfo.list.filter(
-      (item) =>
-        item.nome_completo?.toLowerCase().includes(s) ||
-        item.email?.toLowerCase().includes(s) ||
-        item.cpf?.includes(s) ||
-        item.cargo_nome_snapshot?.toLowerCase().includes(s) ||
-        item.cargo?.nome?.toLowerCase().includes(s),
-    )
-  }, [drillDownInfo, drillDownSearch])
+
+    return drillDownInfo.list.filter((item) => {
+      if (drillDownInfo.type === 'emp') {
+        return (
+          item.name?.toLowerCase().includes(s) ||
+          item.cpf?.includes(s) ||
+          item.email?.toLowerCase().includes(s) ||
+          item.expand?.role_id?.title?.toLowerCase().includes(s)
+        )
+      }
+      if (drillDownInfo.type === 'scale') {
+        const empName = item.collaborator?.name?.toLowerCase() || ''
+        return empName.includes(s) || item.project_name?.toLowerCase().includes(s)
+      }
+      if (drillDownInfo.type === 'docs') {
+        const empName =
+          lists.all.find((e) => e.id === item.collaborator_id)?.name?.toLowerCase() || ''
+        return (
+          item.name?.toLowerCase().includes(s) ||
+          item.type?.toLowerCase().includes(s) ||
+          empName.includes(s)
+        )
+      }
+      if (drillDownInfo.type === 'company') {
+        return item.name?.toLowerCase().includes(s) || item.cnpj?.includes(s)
+      }
+      return false
+    })
+  }, [drillDownInfo, drillDownSearch, lists.all])
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -215,19 +204,6 @@ export default function Index() {
         </div>
       </div>
 
-      {expiring > 0 && (
-        <div className="bg-accent text-accent-foreground p-4 sm:p-5 rounded-xl flex items-start sm:items-center gap-4 shadow-subtle border border-accent/20">
-          <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 shrink-0" />
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg leading-tight">Atenção: Documentos Vencendo</h3>
-            <p className="text-sm opacity-90 mt-1">
-              Existem {expiring} documentos a vencer nos próximos 30 dias. Verifique a aba de
-              colaboradores.
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total de Colaboradores"
@@ -237,41 +213,41 @@ export default function Index() {
           onClick={() => handleOpenDrillDown('Total de Colaboradores', lists.all, 'emp')}
         />
         <StatCard
-          title="Documentos Vencidos"
-          value={stats.pendingDocs}
-          icon={FileWarning}
-          trend="Ação Necessária"
-          isWarning={parseInt(stats.pendingDocs) > 0}
-          onClick={() =>
-            handleOpenDrillDown('Colaboradores com Documentos Vencidos', lists.expired, 'docs')
-          }
+          title="Total de Documentos"
+          value={stats.totalDocs}
+          icon={FileText}
+          trend="Cadastrados"
+          onClick={() => handleOpenDrillDown('Total de Documentos', lists.docs, 'docs')}
         />
         <StatCard
           title="Turnos Ativos Hoje"
           value={stats.activeShifts}
           icon={Briefcase}
           trend="Normal"
-          onClick={() => handleOpenDrillDown('Turnos Ativos Hoje', lists.active, 'emp')}
+          onClick={() => handleOpenDrillDown('Turnos Ativos Hoje', lists.active, 'scale')}
         />
         <StatCard
-          title="A Vencer (30d)"
-          value={expiring.toString()}
-          icon={AlertTriangle}
-          trend="Acompanhamento"
-          isWarning={expiring > 0}
-          onClick={() =>
-            handleOpenDrillDown('Colaboradores com Documentos a Vencer', lists.expiring, 'docs')
-          }
+          title="Empresas Ativas"
+          value={stats.activeCompanies}
+          icon={Building2}
+          trend="Visão Geral"
+          onClick={() => handleOpenDrillDown('Empresas Ativas', lists.companies, 'company')}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1 shadow-subtle hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardTitle className="text-lg">Conformidade de Documentos</CardTitle>
+            <CardTitle className="text-lg">Distribuição de Documentos</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center pb-2">
-            <CompliancePieChart data={pieData} />
+            {lists.docs.length > 0 ? (
+              <CompliancePieChart data={pieData} />
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+                Nenhum dado encontrado
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -280,7 +256,13 @@ export default function Index() {
             <CardTitle className="text-lg">Horas Trabalhadas na Semana</CardTitle>
           </CardHeader>
           <CardContent>
-            <HoursBarChart data={barData} />
+            {barData.length > 0 && barData.some((d) => d.hours > 0) ? (
+              <HoursBarChart data={barData} />
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+                Nenhum dado encontrado
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -301,7 +283,7 @@ export default function Index() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar colaborador..."
+                placeholder="Buscar..."
                 value={drillDownSearch}
                 onChange={(e) => setDrillDownSearch(e.target.value)}
                 className="pl-9 bg-muted/50"
@@ -312,46 +294,64 @@ export default function Index() {
             {filteredDrillDown.map((item) => (
               <div
                 key={item.id}
-                className="p-4 bg-muted/10 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-muted/40 transition-colors"
+                className={`p-4 bg-muted/10 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                  drillDownInfo?.type === 'emp' || drillDownInfo?.type === 'scale'
+                    ? 'cursor-pointer hover:bg-muted/40'
+                    : ''
+                }`}
                 onClick={() => {
-                  setDrillDownInfo(null)
-                  setEditingEmp(item)
-                  setIsSheetOpen(true)
+                  if (drillDownInfo?.type === 'emp' || drillDownInfo?.type === 'scale') {
+                    setDrillDownInfo(null)
+                    setEditingEmp(item.collaborator || item)
+                    setIsSheetOpen(true)
+                  }
                 }}
               >
                 <div>
-                  <p className="font-semibold text-primary">{item.nome_completo}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Cargo: {item.cargo?.nome || item.cargo_nome_snapshot || 'Não definido'}
+                  <p className="font-semibold text-primary">
+                    {drillDownInfo?.type === 'company'
+                      ? item.name
+                      : drillDownInfo?.type === 'docs'
+                        ? item.name
+                        : item.name || item.collaborator?.name || 'Não definido'}
                   </p>
-                  {(item.dados_dinamicos?.razao_social || item.email) && (
+
+                  {drillDownInfo?.type === 'emp' && (
+                    <>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Cargo: {item.expand?.role_id?.title || 'Não definido'}
+                      </p>
+                      {item.email && (
+                        <p className="text-xs text-muted-foreground mt-0.5">E-mail: {item.email}</p>
+                      )}
+                    </>
+                  )}
+
+                  {drillDownInfo?.type === 'scale' && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {item.dados_dinamicos?.razao_social
-                        ? `Razão Social: ${item.dados_dinamicos.razao_social}`
-                        : `E-mail: ${item.email}`}
+                      Horário: {item.start_time} - {item.end_time} | {item.hours}h
+                    </p>
+                  )}
+
+                  {drillDownInfo?.type === 'docs' && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Tipo: {item.type} | Colaborador:{' '}
+                      {lists.all.find((e) => e.id === item.collaborator_id)?.name || 'Desconhecido'}
+                    </p>
+                  )}
+
+                  {drillDownInfo?.type === 'company' && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      CNPJ: {item.cnpj || 'Não informado'}
                     </p>
                   )}
                 </div>
-                {drillDownInfo?.type === 'docs' && (
-                  <div className="text-sm text-right shrink-0">
-                    {item.expiredDocs > 0 && (
-                      <span className="text-red-600 block font-semibold px-2 py-1 bg-red-50 rounded-md border border-red-100">
-                        {item.expiredDocs} documento(s) vencido(s)
-                      </span>
-                    )}
-                    {item.expiringDocs > 0 && (
-                      <span className="text-orange-600 block font-semibold px-2 py-1 bg-orange-50 rounded-md border border-orange-100 mt-2">
-                        {item.expiringDocs} documento(s) a vencer
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             ))}
             {filteredDrillDown.length === 0 && (
               <div className="text-center py-10 px-4 rounded-xl border border-dashed bg-muted/10 mt-4">
                 <p className="text-muted-foreground text-sm font-medium">
-                  Nenhum colaborador encontrado com os filtros aplicados.
+                  Nenhum item encontrado com os filtros aplicados.
                 </p>
               </div>
             )}

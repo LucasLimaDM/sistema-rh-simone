@@ -1,21 +1,10 @@
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Bar,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts'
+import { PieChart, Pie, Cell, BarChart, CartesianGrid, XAxis, YAxis, Bar } from 'recharts'
 
 const pieData = [
-  { name: 'Em dia', value: 65, fill: 'hsl(var(--chart-1))' },
-  { name: 'A Vencer', value: 20, fill: 'hsl(var(--chart-2))' },
-  { name: 'Vencido', value: 15, fill: 'hsl(var(--chart-3))' },
+  { name: 'Contratos', value: 65, fill: 'hsl(var(--chart-1))' },
+  { name: 'Documentos (ID)', value: 20, fill: 'hsl(var(--chart-2))' },
+  { name: 'Outros', value: 15, fill: 'hsl(var(--chart-3))' },
 ]
 
 const barData = [
@@ -28,9 +17,9 @@ const barData = [
 ]
 
 const chartConfig = {
-  upToDate: { label: 'Em dia', color: 'hsl(var(--chart-1))' },
-  expiring: { label: 'A Vencer', color: 'hsl(var(--chart-2))' },
-  expired: { label: 'Vencido', color: 'hsl(var(--chart-3))' },
+  contract: { label: 'Contratos', color: 'hsl(var(--chart-1))' },
+  id: { label: 'Documentos (ID)', color: 'hsl(var(--chart-2))' },
+  other: { label: 'Outros', color: 'hsl(var(--chart-3))' },
   hours: { label: 'Horas Trab.', color: 'hsl(var(--chart-4))' },
 }
 
