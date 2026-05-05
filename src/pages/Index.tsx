@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function Index() {
   const { company } = useOutletContext<AppContextType>()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [stats, setStats] = useState({
@@ -52,7 +52,6 @@ export default function Index() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
-    setIsLoading(true)
     setError(null)
 
     try {
@@ -184,8 +183,6 @@ export default function Index() {
       setLists({ all: [], docs: [], active: [], companies: [] })
       setPieData([])
       setBarData([])
-    } finally {
-      setIsLoading(false)
     }
   }, [company])
 
