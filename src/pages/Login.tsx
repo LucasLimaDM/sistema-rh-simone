@@ -23,7 +23,7 @@ export default function Login() {
       const { error } = await signIn(email, password)
       if (error) {
         let msg = error.message
-        if (msg.toLowerCase().includes('invalid login credentials')) {
+        if (error.status === 400) {
           msg = 'E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.'
         }
         toast({ title: 'Acesso Negado', description: msg, variant: 'destructive' })

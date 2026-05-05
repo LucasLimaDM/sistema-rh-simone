@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,18 +15,17 @@ export default function FirstAccess() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { user } = useAuth()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        toast({
-          title: 'Acesso Inválido',
-          description: 'O link de convite pode ter expirado. Por favor, solicite um novo convite.',
-          variant: 'destructive',
-        })
-        navigate('/login')
-      }
-    })
+    if (!pb.authStore.isValid) {
+      toast({
+        title: 'Acesso Inválido',
+        description: 'Sua sessão é inválida ou expirou. Por favor, faça login novamente.',
+        variant: 'destructive',
+      })
+      navigate('/login')
+    }
   }, [navigate, toast])
 
   const handleSave = async (e: React.FormEvent) => {
@@ -37,30 +37,33 @@ export default function FirstAccess() {
         variant: 'destructive',
       })
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       return toast({
         title: 'Erro',
-        description: 'A senha deve ter pelo menos 6 caracteres.',
+        description: 'A senha deve ter pelo menos 8 caracteres.',
         variant: 'destructive',
       })
     }
 
     setLoading(true)
-    const { data, error } = await supabase.auth.updateUser({ password })
-
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
-    } else {
-      if (data.user) {
-        await supabase
-          .from('employees')
-          .update({ invite_status: 'Ativo' })
-          .eq('user_id', data.user.id)
+    try {
+      if (user?.id) {
+        await pb.collection('users').update(user.id, {
+          password,
+          passwordConfirm: password,
+        })
+        toast({ title: 'Sucesso', description: 'Sua senha foi definida! Bem-vindo(a) ao sistema.' })
+        navigate('/')
       }
-      toast({ title: 'Sucesso', description: 'Sua senha foi definida! Bem-vindo(a) ao sistema.' })
-      navigate('/')
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao definir senha',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -83,8 +86,8 @@ export default function FirstAccess() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
-                placeholder="Mínimo de 6 caracteres"
+                minLength={8}
+                placeholder="Mínimo de 8 caracteres"
               />
             </div>
             <div className="space-y-2">
@@ -95,7 +98,7 @@ export default function FirstAccess() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 placeholder="Repita sua senha"
               />
             </div>
