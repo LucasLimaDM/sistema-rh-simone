@@ -108,6 +108,12 @@ export function Layout() {
 
   const handleSaveCompany = async () => {
     setFormErrors({})
+
+    if (!formData.name.trim()) {
+      setFormErrors({ name: 'Nome Fantasia é obrigatório.' })
+      return
+    }
+
     setSaving(true)
     try {
       const form = new FormData()
@@ -122,17 +128,21 @@ export function Layout() {
       if (formData.responsible_name) form.append('responsible_name', formData.responsible_name)
       if (formData.responsible_cpf) form.append('responsible_cpf', formData.responsible_cpf)
       form.append('active', 'true')
-      if (user) form.append('user_id', user.id)
+      if (user?.id) form.append('user_id', user.id)
 
       if (files.logo) form.append('logo', files.logo)
       if (files.signature) form.append('signature', files.signature)
 
       await pb.collection('companies').create(form)
       toast({ title: 'Sucesso', description: 'Empresa cadastrada com sucesso!' })
-      // form resets and fetches happen automatically via useRealtime
+
+      // Update the state immediately
+      await fetchCompanies()
     } catch (err: any) {
-      setFormErrors(extractFieldErrors(err))
-      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
+      const fieldErrs = extractFieldErrors(err)
+      setFormErrors(fieldErrs)
+      const errorMsg = Object.values(fieldErrs).join(' ') || err.message || 'Erro desconhecido.'
+      toast({ title: 'Erro ao salvar', description: errorMsg, variant: 'destructive' })
     } finally {
       setSaving(false)
     }

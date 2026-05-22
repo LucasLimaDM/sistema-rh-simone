@@ -25,6 +25,7 @@ import { Building2, Plus, Edit2, Upload, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
 import { maskCNPJ, maskCPF, maskIE, maskIM } from '@/lib/utils'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 export default function Companies() {
   const { user } = useAuth()
@@ -65,17 +66,28 @@ export default function Companies() {
   }, [])
 
   const handleSave = async () => {
+    if (!formData.name.trim()) {
+      toast({
+        title: 'Erro de validação',
+        description: 'O campo Nome Fantasia é obrigatório.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
       const form = new FormData()
       form.append('name', formData.name)
-      form.append('corporate_name', formData.corporate_name)
-      form.append('cnpj', formData.cnpj)
-      form.append('state_registration', formData.state_registration)
-      form.append('municipal_registration', formData.municipal_registration)
-      form.append('responsible_name', formData.responsible_name)
-      form.append('responsible_cpf', formData.responsible_cpf)
+      if (formData.corporate_name) form.append('corporate_name', formData.corporate_name)
+      if (formData.cnpj) form.append('cnpj', formData.cnpj)
+      if (formData.state_registration)
+        form.append('state_registration', formData.state_registration)
+      if (formData.municipal_registration)
+        form.append('municipal_registration', formData.municipal_registration)
+      if (formData.responsible_name) form.append('responsible_name', formData.responsible_name)
+      if (formData.responsible_cpf) form.append('responsible_cpf', formData.responsible_cpf)
       form.append('active', 'true')
-      if (user) form.append('user_id', user.id)
+      if (user?.id) form.append('user_id', user.id)
 
       if (files.logo) form.append('logo', files.logo)
       if (files.signature) form.append('signature', files.signature)
@@ -83,17 +95,19 @@ export default function Companies() {
       let savedRecord
       if (formData.id) {
         savedRecord = await pb.collection('companies').update(formData.id, form)
-        if (user) logAudit('companies', formData.id, 'update', user.id, null, formData)
+        if (user?.id) logAudit('companies', formData.id, 'update', user.id, null, formData)
       } else {
         savedRecord = await pb.collection('companies').create(form)
-        if (user) logAudit('companies', savedRecord.id, 'create', user.id, null, formData)
+        if (user?.id) logAudit('companies', savedRecord.id, 'create', user.id, null, formData)
       }
 
       toast({ title: 'Sucesso', description: 'Empresa salva com sucesso.' })
       setIsOpen(false)
       fetchCompanies()
     } catch (err: any) {
-      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
+      const fieldErrs = extractFieldErrors(err)
+      const errorMsg = Object.values(fieldErrs).join(' ') || err.message || 'Erro desconhecido.'
+      toast({ title: 'Erro ao salvar', description: errorMsg, variant: 'destructive' })
     }
   }
 
