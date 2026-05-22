@@ -1,433 +1,195 @@
 import { useState, useEffect } from 'react'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
+import { AppContextType } from '@/lib/types'
+import {
+  Sidebar,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+} from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import {
-  LayoutDashboard,
+  LogOut,
+  Settings,
   Users,
-  Briefcase,
+  Building2,
   Clock,
   FileText,
-  Settings,
-  LogOut,
-  Building2,
-  Upload,
+  LayoutDashboard,
+  Briefcase,
+  FileSignature,
+  ChevronDown,
 } from 'lucide-react'
-import pb from '@/lib/pocketbase/client'
-import { useAuth } from '@/hooks/use-auth'
-import { cn, maskCNPJ, maskCPF, maskIE, maskIM } from '@/lib/utils'
-import { AppContextType, Company } from '@/lib/types'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { useRealtime } from '@/hooks/use-realtime'
-import { useToast } from '@/hooks/use-toast'
-import { extractFieldErrors } from '@/lib/pocketbase/errors'
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { InitialSetupModal } from '@/components/layout/initial-setup-modal'
 
-export function Layout() {
+export default function Layout() {
   const { user, signOut } = useAuth()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { toast } = useToast()
-
-  const [company, setCompany] = useState<Company>('')
+  const [company, setCompany] = useState<string>('')
+  const [showInitialSetup, setShowInitialSetup] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [companies, setCompanies] = useState<any[]>([])
-  const [showModal, setShowModal] = useState(false)
-  const [isFetching, setIsFetching] = useState(true)
-
-  const [formData, setFormData] = useState({
-    name: '',
-    corporate_name: '',
-    cnpj: '',
-    phone: '',
-    state_registration: '',
-    municipal_registration: '',
-    responsible_name: '',
-    responsible_cpf: '',
-  })
-  const [files, setFiles] = useState<{ logo?: File; signature?: File }>({})
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
-
-  const fetchCompanies = async () => {
-    try {
-      const records = await pb.collection('companies').getFullList({ sort: 'name' })
-      setCompanies(records)
-      if (records.length === 0) {
-        setShowModal(true)
-      } else {
-        setShowModal(false)
-        if (!company || !records.find((c) => c.name === company)) {
-          setCompany(records[0].name)
-        }
-      }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setIsFetching(false)
-    }
-  }
+  const location = useLocation()
 
   useEffect(() => {
-    if (user) {
-      fetchCompanies()
+    const fetchCompanies = async () => {
+      if (!user) return
+      try {
+        const result = await pb.collection('companies').getFullList({
+          filter: `user_id = '${user.id}'`,
+          sort: 'created',
+        })
+        setCompanies(result)
+        if (result.length === 0) {
+          setShowInitialSetup(true)
+        } else {
+          setCompany(result[0].name)
+          setShowInitialSetup(false)
+        }
+      } catch (err) {
+        console.error('Error fetching companies', err)
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchCompanies()
   }, [user])
 
-  useRealtime('companies', () => {
-    fetchCompanies()
-  })
-
-  const handleLogout = () => {
-    signOut()
-    navigate('/login')
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Carregando...</div>
   }
 
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    field: 'logo' | 'signature',
-  ) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFiles((prev) => ({ ...prev, [field]: file }))
-    }
-  }
-
-  const handleSaveCompany = async () => {
-    setFormErrors({})
-
-    if (!formData.name.trim()) {
-      setFormErrors({ name: 'Nome Fantasia é obrigatório.' })
-      return
-    }
-
-    setSaving(true)
-    try {
-      const payload = new FormData()
-
-      payload.append('name', formData.name.trim())
-      payload.append('active', 'true')
-
-      if (user?.id) {
-        payload.append('user_id', user.id)
-      }
-
-      const stringFields: (keyof typeof formData)[] = [
-        'corporate_name',
-        'cnpj',
-        'phone',
-        'state_registration',
-        'municipal_registration',
-        'responsible_name',
-        'responsible_cpf',
-      ]
-
-      stringFields.forEach((field) => {
-        const val = formData[field]?.trim()
-        if (val) {
-          payload.append(field, val)
-        }
-      })
-
-      if (files.logo) {
-        payload.append('logo', files.logo)
-      }
-      if (files.signature) {
-        payload.append('signature', files.signature)
-      }
-
-      await pb.collection('companies').create(payload)
-
-      toast({ title: 'Sucesso', description: 'Empresa cadastrada com sucesso!' })
-
-      // Update the state immediately
-      await fetchCompanies()
-    } catch (err: any) {
-      const fieldErrs = extractFieldErrors(err)
-      setFormErrors(fieldErrs)
-      const errorMsg =
-        Object.values(fieldErrs).join(' ') || err.message || 'Verifique os campos do formulário.'
-      toast({ title: 'Erro ao salvar', description: errorMsg, variant: 'destructive' })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Empresas', href: '/empresas', icon: Building2 },
-    { name: 'Colaboradores', href: '/colaboradores', icon: Users },
-    { name: 'Cargos', href: '/cargos', icon: Briefcase },
-    { name: 'Ponto', href: '/ponto', icon: Clock },
-    { name: 'Documentos', href: '/documentos', icon: FileText },
-    { name: 'Configurações', href: '/configuracoes', icon: Settings },
+  const navItems = [
+    { title: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { title: 'Empresas', path: '/empresas', icon: Building2 },
+    { title: 'Colaboradores', path: '/colaboradores', icon: Users },
+    { title: 'Cargos', path: '/cargos', icon: Briefcase },
+    { title: 'Ponto', path: '/ponto', icon: Clock },
+    { title: 'Escalas', path: '/escalas', icon: Clock },
+    { title: 'Modelos', path: '/modelos', icon: FileSignature },
+    { title: 'Documentos', path: '/documentos', icon: FileText },
   ]
-
-  const contextValue: AppContextType = {
-    company,
-    setCompany,
+  if (user?.role === 'Admin') {
+    navItems.push({ title: 'Configurações', path: '/configuracoes', icon: Settings })
   }
 
   return (
-    <div className="flex h-screen bg-muted/20">
-      <aside className="w-64 bg-background border-r flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b">
-          <h1 className="text-lg font-bold text-primary">Sistema RH</h1>
-        </div>
-
-        <div className="p-4 border-b">
-          <Select
-            value={company}
-            onValueChange={(value) => setCompany(value as Company)}
-            disabled={isFetching || companies.length === 0}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione a empresa" />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.map((c) => (
-                <SelectItem key={c.id} value={c.name}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive =
-              location.pathname === item.href ||
-              (item.href !== '/' && location.pathname.startsWith(item.href))
-            return (
-              <Link key={item.name} to={item.href}>
-                <span
-                  className={cn(
-                    'flex items-center px-3 py-2 text-sm font-medium rounded-md mb-1',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader className="border-b px-4 py-4">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary text-primary-foreground p-1 rounded-md">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <span className="font-bold text-lg">Sistema RH</span>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu className="px-2 py-4 gap-1">
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.path}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === item.path}
+                  tooltip={item.title}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </span>
-              </Link>
-            )
-          })}
-        </nav>
+                  <Link to={item.path}>
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="border-t p-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start gap-2 px-2">
+                <Avatar className="w-6 h-6">
+                  <AvatarImage src={user?.avatar ? pb.files.getURL(user, user.avatar) : ''} />
+                  <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start text-xs overflow-hidden">
+                  <span className="font-medium truncate w-full">{user?.name}</span>
+                  <span className="text-muted-foreground truncate w-full">{user?.email}</span>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
+                <LogOut className="w-4 h-4 mr-2" /> Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarFooter>
+      </Sidebar>
 
-        <div className="p-4 border-t">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-              {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium truncate">{user?.name || 'Usuário'}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full justify-start text-muted-foreground"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
-          {!isFetching && companies.length > 0 ? (
-            <Outlet context={contextValue} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              {isFetching ? 'Carregando empresas...' : 'Aguardando cadastro de empresa...'}
-            </div>
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-4 border-b px-4 lg:px-6">
+          <SidebarTrigger />
+          <div className="flex-1" />
+          {companies.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Building2 className="w-4 h-4" />
+                  <span className="max-w-[150px] truncate">{company || 'Selecionar Empresa'}</span>
+                  <ChevronDown className="w-4 h-4 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Trocar Empresa</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {companies.map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => setCompany(c.name)}
+                    className="cursor-pointer"
+                  >
+                    {c.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        </div>
-      </main>
+        </header>
 
-      <Dialog
-        open={showModal}
-        onOpenChange={(open) => {
-          if (!open && companies.length === 0) return
-          setShowModal(open)
-        }}
-      >
-        <DialogContent
-          className="max-w-2xl"
-          onInteractOutside={(e) => {
-            if (companies.length === 0) e.preventDefault()
-          }}
-          onEscapeKeyDown={(e) => {
-            if (companies.length === 0) e.preventDefault()
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Configuração Inicial</DialogTitle>
-            <DialogDescription>
-              Detectamos que você não possui nenhuma empresa cadastrada. Por favor, cadastre sua
-              primeira organização para acessar o sistema.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-            <div className="space-y-2">
-              <Label>
-                Nome Fantasia <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Primer Pisos"
-              />
-              {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Razão Social</Label>
-              <Input
-                value={formData.corporate_name}
-                onChange={(e) => setFormData({ ...formData, corporate_name: e.target.value })}
-              />
-              {formErrors.corporate_name && (
-                <p className="text-xs text-destructive">{formErrors.corporate_name}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>CNPJ</Label>
-              <Input
-                value={formData.cnpj}
-                onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
-                placeholder="00.000.000/0000-00"
-              />
-              {formErrors.cnpj && <p className="text-xs text-destructive">{formErrors.cnpj}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-              {formErrors.phone && <p className="text-xs text-destructive">{formErrors.phone}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Inscrição Estadual</Label>
-              <Input
-                value={formData.state_registration}
-                onChange={(e) =>
-                  setFormData({ ...formData, state_registration: maskIE(e.target.value) })
-                }
-              />
-              {formErrors.state_registration && (
-                <p className="text-xs text-destructive">{formErrors.state_registration}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Inscrição Municipal</Label>
-              <Input
-                value={formData.municipal_registration}
-                onChange={(e) =>
-                  setFormData({ ...formData, municipal_registration: maskIM(e.target.value) })
-                }
-              />
-              {formErrors.municipal_registration && (
-                <p className="text-xs text-destructive">{formErrors.municipal_registration}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Nome do Responsável</Label>
-              <Input
-                value={formData.responsible_name}
-                onChange={(e) => setFormData({ ...formData, responsible_name: e.target.value })}
-              />
-              {formErrors.responsible_name && (
-                <p className="text-xs text-destructive">{formErrors.responsible_name}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>CPF do Responsável</Label>
-              <Input
-                value={formData.responsible_cpf}
-                onChange={(e) =>
-                  setFormData({ ...formData, responsible_cpf: maskCPF(e.target.value) })
-                }
-                placeholder="000.000.000-00"
-              />
-              {formErrors.responsible_cpf && (
-                <p className="text-xs text-destructive">{formErrors.responsible_cpf}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Logotipo</Label>
-              <div className="flex gap-2 items-center">
-                <Button type="button" variant="outline" className="relative text-xs">
-                  <Upload className="h-3 w-3 mr-1" /> {files.logo ? 'Alterar' : 'Upload'}
-                  <input
-                    type="file"
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'logo')}
-                  />
-                </Button>
-                {files.logo && (
-                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                    {files.logo.name}
-                  </span>
-                )}
-              </div>
-              {formErrors.logo && <p className="text-xs text-destructive">{formErrors.logo}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Assinatura Responsável</Label>
-              <div className="flex gap-2 items-center">
-                <Button type="button" variant="outline" className="relative text-xs">
-                  <Upload className="h-3 w-3 mr-1" /> {files.signature ? 'Alterar' : 'Upload'}
-                  <input
-                    type="file"
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    accept="image/*"
-                    onChange={(e) => handleFileChange(e, 'signature')}
-                  />
-                </Button>
-                {files.signature && (
-                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                    {files.signature.name}
-                  </span>
-                )}
-              </div>
-              {formErrors.signature && (
-                <p className="text-xs text-destructive">{formErrors.signature}</p>
-              )}
-            </div>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-muted/20">
+          <div className="mx-auto w-full max-w-7xl">
+            <Outlet context={{ company, setCompany } as AppContextType} />
           </div>
-          <DialogFooter>
-            <Button onClick={handleLogout} variant="ghost" disabled={saving}>
-              Sair
-            </Button>
-            <Button onClick={handleSaveCompany} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar e Continuar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </main>
+      </SidebarInset>
+
+      {showInitialSetup && (
+        <InitialSetupModal
+          open={showInitialSetup}
+          onComplete={(newCompany) => {
+            setCompany(newCompany)
+            setShowInitialSetup(false)
+            window.location.reload()
+          }}
+        />
+      )}
+    </SidebarProvider>
   )
 }
-
-export default Layout
