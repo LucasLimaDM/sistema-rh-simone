@@ -108,13 +108,11 @@ export default function Documents() {
 
       if (emp) {
         setEmpresa(emp)
-        const docsPromise = pb
-          .collection('contracts')
-          .getFullList({
-            filter: `company_id="${emp.id}"`,
-            expand: 'collaborator_id',
-            sort: '-created',
-          })
+        const docsPromise = pb.collection('contracts').getFullList({
+          filter: `company_id="${emp.id}"`,
+          expand: 'collaborator_id',
+          sort: '-created',
+        })
         const tempsPromise = pb
           .collection('templates')
           .getFullList({ filter: `company_id="${emp.id}"` })

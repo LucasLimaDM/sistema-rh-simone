@@ -89,8 +89,8 @@ migrate(
       listRule: "@request.auth.id != ''",
       viewRule: "@request.auth.id != ''",
       createRule: "@request.auth.id != ''",
-      updateRule: 'null',
-      deleteRule: 'null',
+      updateRule: null,
+      deleteRule: null,
       fields: [
         { name: 'entity', type: 'text', required: true },
         { name: 'entity_id', type: 'text', required: true },

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-22T19:40:02.407Z",
+  "generatedAt": "2026-05-22T19:47:34.134Z",
   "collections": [
     {
       "name": "users",
@@ -50,6 +50,18 @@
           "required": false,
           "system": false,
           "selectValues": ["Admin", "Usuario"]
+        },
+        {
+          "name": "signature",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "settings",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -131,6 +143,30 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "in1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "out1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "in2",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "out2",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_work_scales_user_date ON work_scales (user_id, date)"]
@@ -190,6 +226,48 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "corporate_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state_registration",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "municipal_registration",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsible_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "signature",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -248,6 +326,13 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
         }
       ],
       "indexes": []
@@ -426,6 +511,209 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "collaborator_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "collaborators"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "version",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "template_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "templates"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "witnesses",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rg",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "signature",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "templates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "document_type",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "content",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "audit_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "entity",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "entity_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "before",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "after",
+          "type": "json",
+          "required": false,
+          "system": false
         },
         {
           "name": "created",
