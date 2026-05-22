@@ -52,3 +52,8 @@ export const maskPhone = (v: string) => {
   value = value.replace(/(\d{4,5})(\d{4})$/, '$1-$2')
   return value.substring(0, 15)
 }
+
+export const stripNonNumeric = (v: string) => {
+  if (!v) return ''
+  return v.replace(/\D/g, '')
+}

@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { maskCNPJ, maskCPF, maskIE, maskIM, maskPhone, stripNonNumeric } from '@/lib/utils'
 
 export function InitialSetupModal({
   open,
@@ -40,9 +41,17 @@ export function InitialSetupModal({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
-    if (errors[e.target.name]) {
-      setErrors((prev) => ({ ...prev, [e.target.name]: '' }))
+    let { name, value } = e.target
+
+    if (name === 'cnpj') value = maskCNPJ(value)
+    else if (name === 'phone') value = maskPhone(value)
+    else if (name === 'responsible_cpf') value = maskCPF(value)
+    else if (name === 'state_registration') value = maskIE(value)
+    else if (name === 'municipal_registration') value = maskIM(value)
+
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }))
     }
   }
 
@@ -52,24 +61,39 @@ export function InitialSetupModal({
     setErrors({})
 
     try {
-      const data = new FormData()
-      data.append('name', formData.name)
-      data.append('corporate_name', formData.corporate_name)
-      data.append('cnpj', formData.cnpj.replace(/\D/g, ''))
-      data.append('phone', formData.phone.replace(/\D/g, ''))
-      data.append('state_registration', formData.state_registration.replace(/\D/g, ''))
-      data.append('municipal_registration', formData.municipal_registration.replace(/\D/g, ''))
-      data.append('responsible_name', formData.responsible_name)
-      data.append('responsible_cpf', formData.responsible_cpf.replace(/\D/g, ''))
-      data.append('active', 'true')
-      if (user?.id) {
-        data.append('user_id', user.id)
+      const payload: Record<string, any> = {
+        name: formData.name,
+        corporate_name: formData.corporate_name,
+        cnpj: stripNonNumeric(formData.cnpj),
+        phone: stripNonNumeric(formData.phone),
+        state_registration: stripNonNumeric(formData.state_registration),
+        municipal_registration: stripNonNumeric(formData.municipal_registration),
+        responsible_name: formData.responsible_name,
+        responsible_cpf: stripNonNumeric(formData.responsible_cpf),
+        active: true,
       }
 
-      if (logo) data.append('logo', logo)
-      if (signature) data.append('signature', signature)
+      if (user?.id) {
+        payload.user_id = user.id
+      }
 
-      const record = await pb.collection('companies').create(data)
+      let record
+
+      if (logo || signature) {
+        const data = new FormData()
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            data.append(key, String(value))
+          }
+        })
+        if (logo) data.append('logo', logo)
+        if (signature) data.append('signature', signature)
+
+        record = await pb.collection('companies').create(data)
+      } else {
+        record = await pb.collection('companies').create(payload)
+      }
+
       toast({ title: 'Sucesso', description: 'Empresa cadastrada com sucesso!' })
       onComplete(record.name)
     } catch (error: any) {
