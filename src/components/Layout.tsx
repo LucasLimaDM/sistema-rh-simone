@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,9 +10,11 @@ import {
   Settings,
   LogOut,
   Building2,
+  Upload,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { cn } from '@/lib/utils'
+import { cn, maskCNPJ, maskCPF, maskIE, maskIM } from '@/lib/utils'
 import { AppContextType, Company } from '@/lib/types'
 import {
   Select,
@@ -21,16 +23,119 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useToast } from '@/hooks/use-toast'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 export function Layout() {
   const { user, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const [company, setCompany] = useState<Company>('Primer Pisos')
+  const { toast } = useToast()
+
+  const [company, setCompany] = useState<Company>('')
+  const [companies, setCompanies] = useState<any[]>([])
+  const [showModal, setShowModal] = useState(false)
+  const [isFetching, setIsFetching] = useState(true)
+
+  const [formData, setFormData] = useState({
+    name: '',
+    corporate_name: '',
+    cnpj: '',
+    phone: '',
+    state_registration: '',
+    municipal_registration: '',
+    responsible_name: '',
+    responsible_cpf: '',
+  })
+  const [files, setFiles] = useState<{ logo?: File; signature?: File }>({})
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+
+  const fetchCompanies = async () => {
+    try {
+      const records = await pb.collection('companies').getFullList({ sort: 'name' })
+      setCompanies(records)
+      if (records.length === 0) {
+        setShowModal(true)
+      } else {
+        setShowModal(false)
+        if (!company || !records.find((c) => c.name === company)) {
+          setCompany(records[0].name)
+        }
+      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsFetching(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user) {
+      fetchCompanies()
+    }
+  }, [user])
+
+  useRealtime('companies', () => {
+    fetchCompanies()
+  })
 
   const handleLogout = () => {
     signOut()
     navigate('/login')
+  }
+
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'logo' | 'signature',
+  ) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setFiles((prev) => ({ ...prev, [field]: file }))
+    }
+  }
+
+  const handleSaveCompany = async () => {
+    setFormErrors({})
+    setSaving(true)
+    try {
+      const form = new FormData()
+      form.append('name', formData.name)
+      if (formData.corporate_name) form.append('corporate_name', formData.corporate_name)
+      if (formData.cnpj) form.append('cnpj', formData.cnpj)
+      if (formData.phone) form.append('phone', formData.phone)
+      if (formData.state_registration)
+        form.append('state_registration', formData.state_registration)
+      if (formData.municipal_registration)
+        form.append('municipal_registration', formData.municipal_registration)
+      if (formData.responsible_name) form.append('responsible_name', formData.responsible_name)
+      if (formData.responsible_cpf) form.append('responsible_cpf', formData.responsible_cpf)
+      form.append('active', 'true')
+      if (user) form.append('user_id', user.id)
+
+      if (files.logo) form.append('logo', files.logo)
+      if (files.signature) form.append('signature', files.signature)
+
+      await pb.collection('companies').create(form)
+      toast({ title: 'Sucesso', description: 'Empresa cadastrada com sucesso!' })
+      // form resets and fetches happen automatically via useRealtime
+    } catch (err: any) {
+      setFormErrors(extractFieldErrors(err))
+      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const navigation = [
@@ -56,13 +161,20 @@ export function Layout() {
         </div>
 
         <div className="p-4 border-b">
-          <Select value={company} onValueChange={(value) => setCompany(value as Company)}>
+          <Select
+            value={company}
+            onValueChange={(value) => setCompany(value as Company)}
+            disabled={isFetching || companies.length === 0}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione a empresa" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Primer Pisos">Primer Pisos</SelectItem>
-              <SelectItem value="Piso Plano">Piso Plano</SelectItem>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.name}>
+                  {c.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -113,9 +225,163 @@ export function Layout() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-8">
-          <Outlet context={contextValue} />
+          {!isFetching && companies.length > 0 ? (
+            <Outlet context={contextValue} />
+          ) : (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              {isFetching ? 'Carregando empresas...' : 'Aguardando cadastro de empresa...'}
+            </div>
+          )}
         </div>
       </main>
+
+      <Dialog
+        open={showModal}
+        onOpenChange={(open) => {
+          if (!open && companies.length === 0) return
+          setShowModal(open)
+        }}
+      >
+        <DialogContent
+          className="max-w-2xl"
+          onInteractOutside={(e) => {
+            if (companies.length === 0) e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            if (companies.length === 0) e.preventDefault()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Configuração Inicial</DialogTitle>
+            <DialogDescription>
+              Detectamos que você não possui nenhuma empresa cadastrada. Por favor, cadastre sua
+              primeira organização para acessar o sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
+            <div className="space-y-2">
+              <Label>
+                Nome Fantasia <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: Primer Pisos"
+              />
+              {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Razão Social</Label>
+              <Input
+                value={formData.corporate_name}
+                onChange={(e) => setFormData({ ...formData, corporate_name: e.target.value })}
+              />
+              {formErrors.corporate_name && (
+                <p className="text-xs text-destructive">{formErrors.corporate_name}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>CNPJ</Label>
+              <Input
+                value={formData.cnpj}
+                onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
+                placeholder="00.000.000/0000-00"
+              />
+              {formErrors.cnpj && <p className="text-xs text-destructive">{formErrors.cnpj}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+              {formErrors.phone && <p className="text-xs text-destructive">{formErrors.phone}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Inscrição Estadual</Label>
+              <Input
+                value={formData.state_registration}
+                onChange={(e) =>
+                  setFormData({ ...formData, state_registration: maskIE(e.target.value) })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Inscrição Municipal</Label>
+              <Input
+                value={formData.municipal_registration}
+                onChange={(e) =>
+                  setFormData({ ...formData, municipal_registration: maskIM(e.target.value) })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome do Responsável</Label>
+              <Input
+                value={formData.responsible_name}
+                onChange={(e) => setFormData({ ...formData, responsible_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>CPF do Responsável</Label>
+              <Input
+                value={formData.responsible_cpf}
+                onChange={(e) =>
+                  setFormData({ ...formData, responsible_cpf: maskCPF(e.target.value) })
+                }
+                placeholder="000.000.000-00"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Logotipo</Label>
+              <div className="flex gap-2 items-center">
+                <Button variant="outline" className="relative text-xs">
+                  <Upload className="h-3 w-3 mr-1" /> {files.logo ? 'Alterar' : 'Upload'}
+                  <input
+                    type="file"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'logo')}
+                  />
+                </Button>
+                {files.logo && (
+                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                    {files.logo.name}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Assinatura Responsável</Label>
+              <div className="flex gap-2 items-center">
+                <Button variant="outline" className="relative text-xs">
+                  <Upload className="h-3 w-3 mr-1" /> {files.signature ? 'Alterar' : 'Upload'}
+                  <input
+                    type="file"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e, 'signature')}
+                  />
+                </Button>
+                {files.signature && (
+                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                    {files.signature.name}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleLogout} variant="ghost" disabled={saving}>
+              Sair
+            </Button>
+            <Button onClick={handleSaveCompany} disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar e Continuar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

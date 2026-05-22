@@ -1,4 +1,4 @@
-export type Company = 'Primer Pisos' | 'Piso Plano'
+export type Company = string
 export type ContractType = 'CLT' | 'MEI'
 export type DocStatus = 'up-to-date' | 'expiring' | 'expired'
 export type Role =
