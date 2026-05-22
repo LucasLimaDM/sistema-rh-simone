@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import {
   Dialog,
@@ -29,7 +30,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Shield, User as UserIcon, Upload, Trash2, Plus } from 'lucide-react'
+import { Shield, User as UserIcon, Upload, Trash2, Plus, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
 import { maskCPF } from '@/lib/utils'
@@ -47,13 +48,15 @@ export default function Settings() {
     texto_explicativo: '',
     desconto_almoco: 1,
   })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     id: '',
-    nome_completo: '',
+    name: '',
     email: '',
-    tipo_usuario: 'Usuario',
+    role: 'Usuario',
     cpf: '',
-    assinatura_url: '',
   })
   const [newUserData, setNewUserData] = useState({
     name: '',
@@ -61,252 +64,182 @@ export default function Settings() {
     password: '',
     role: 'Usuario',
     cpf: '',
-    assinatura_url: '',
   })
   const [witnessData, setWitnessData] = useState({
     id: '',
-    nome: '',
+    name: '',
     cpf: '',
     rg: '',
-    assinatura_url: '',
   })
+
+  const [files, setFiles] = useState<{ user?: File; new_user?: File; witness?: File }>({})
   const { toast } = useToast()
 
-  const fetchProfiles = async () => {
-    const { data } = await supabase.from('usuario_sistema').select('*').order('nome_completo')
-    if (data) {
-      setProfiles(data)
-    }
-  }
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [usersData, witData] = await Promise.all([
+        pb.collection('users').getFullList({ sort: 'name' }),
+        pb.collection('witnesses').getFullList({ sort: 'name' }),
+      ])
+      setProfiles(usersData)
+      setWitnesses(witData)
 
-  const fetchWitnesses = async () => {
-    const { data } = await supabase
-      .from('testemunhas' as any)
-      .select('*')
-      .order('nome')
-    if (data) setWitnesses(data)
-  }
-
-  const fetchUserSettings = async () => {
-    if (!user) return
-    const { data } = await supabase
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-    if (data && (data as any).configuracoes_ponto) {
-      setPointRules({
-        texto_explicativo: (data as any).configuracoes_ponto.texto_explicativo || '',
-        desconto_almoco: (data as any).configuracoes_ponto.desconto_almoco ?? 1,
-      })
+      if (user) {
+        const u = await pb.collection('users').getOne(user.id)
+        if (u.settings?.configuracoes_ponto) {
+          setPointRules({
+            texto_explicativo: u.settings.configuracoes_ponto.texto_explicativo || '',
+            desconto_almoco: u.settings.configuracoes_ponto.desconto_almoco ?? 1,
+          })
+        }
+      }
+    } catch (err: any) {
+      setError('Erro ao carregar configurações: ' + err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchProfiles()
-    fetchWitnesses()
-    if (user) fetchUserSettings()
+    fetchData()
     setIsAdmin(role === 'Admin')
   }, [user, role])
 
   const handleSave = async () => {
-    if (newPassword && (user?.id === formData.id || user?.email === formData.email)) {
-      const { error: authError } = await supabase.auth.updateUser({ password: newPassword })
-      if (authError) {
-        toast({
-          title: 'Erro ao alterar senha',
-          description: authError.message,
-          variant: 'destructive',
-        })
-        return
+    try {
+      const fd = new FormData()
+      fd.append('name', formData.name)
+      fd.append('email', formData.email)
+      fd.append('role', formData.role)
+      fd.append('cpf', formData.cpf)
+      if (newPassword && (user?.id === formData.id || user?.email === formData.email)) {
+        fd.append('password', newPassword)
+        fd.append('passwordConfirm', newPassword)
       }
-    }
+      if (files.user) fd.append('signature', files.user)
 
-    const payload = {
-      nome_completo: formData.nome_completo,
-      email: formData.email,
-      tipo_usuario: formData.tipo_usuario,
-      cpf: formData.cpf,
-      assinatura_url: formData.assinatura_url,
-    }
-    const { error } = await supabase.from('usuario_sistema').update(payload).eq('id', formData.id)
-    if (!error) {
-      if (user) logAudit('usuario_sistema', formData.id, 'update', user.id, null, payload)
+      await pb.collection('users').update(formData.id, fd)
+      if (user) logAudit('users', formData.id, 'update', user.id, null, formData)
+
       toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso.' })
       setIsOpen(false)
       setNewPassword('')
-      fetchProfiles()
-    } else {
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
+      setFiles({})
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' })
     }
-  }
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    toast({ title: 'Enviando assinatura...', description: 'Aguarde o upload.' })
-    const fileExt = file.name.split('.').pop()
-    const fileName = `assinatura_${formData.id}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-    const filePath = `assinaturas_usuarios/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('rh_files')
-      .upload(filePath, file, { upsert: true })
-
-    if (uploadError) {
-      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
-      return
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('rh_files').getPublicUrl(filePath)
-    setFormData({ ...formData, assinatura_url: publicUrl })
-    toast({ title: 'Upload concluído', description: 'Assinatura carregada com sucesso.' })
-  }
-
-  const handleUploadNewUserSignature = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    toast({ title: 'Enviando assinatura...', description: 'Aguarde o upload.' })
-    const fileExt = file.name.split('.').pop()
-    const fileName = `assinatura_novo_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-    const filePath = `assinaturas_usuarios/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('rh_files')
-      .upload(filePath, file, { upsert: true })
-
-    if (uploadError) {
-      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
-      return
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('rh_files').getPublicUrl(filePath)
-    setNewUserData({ ...newUserData, assinatura_url: publicUrl })
-    toast({ title: 'Upload concluído', description: 'Assinatura carregada com sucesso.' })
   }
 
   const handleAddUser = async () => {
-    if (!newUserData.name || !newUserData.email) return
-    if (!newUserData.password) {
+    if (!newUserData.name || !newUserData.email || !newUserData.password) {
       return toast({
         title: 'Atenção',
-        description: 'A senha é obrigatória',
+        description: 'Preencha os campos obrigatórios',
         variant: 'destructive',
       })
     }
-    const { data, error } = await supabase.functions.invoke('invite-user', { body: newUserData })
-    if (error || data?.error) {
-      toast({
-        title: 'Erro ao adicionar',
-        description: error?.message || data?.error,
-        variant: 'destructive',
-      })
-    } else {
-      if (newUserData.cpf || newUserData.assinatura_url) {
-        await supabase
-          .from('usuario_sistema')
-          .update({
-            cpf: newUserData.cpf,
-            assinatura_url: newUserData.assinatura_url,
-          })
-          .eq('email', newUserData.email)
-      }
+    try {
+      const fd = new FormData()
+      fd.append('name', newUserData.name)
+      fd.append('email', newUserData.email)
+      fd.append('password', newUserData.password)
+      fd.append('passwordConfirm', newUserData.password)
+      fd.append('role', newUserData.role)
+      fd.append('cpf', newUserData.cpf)
+      if (files.new_user) fd.append('signature', files.new_user)
+
+      await pb.collection('users').create(fd)
       toast({ title: 'Usuário adicionado com sucesso' })
       setIsAddOpen(false)
-      setNewUserData({
-        name: '',
-        email: '',
-        password: '',
-        role: 'Usuario',
-        cpf: '',
-        assinatura_url: '',
-      })
-      fetchProfiles()
+      setNewUserData({ name: '', email: '', password: '', role: 'Usuario', cpf: '' })
+      setFiles({})
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Erro ao adicionar', description: err.message, variant: 'destructive' })
     }
   }
 
   const handleDeleteUser = async (id: string) => {
     if (!isAdmin) return toast({ title: 'Acesso Negado', variant: 'destructive' })
     if (!confirm('Deseja realmente excluir este usuário?')) return
-    await supabase.from('usuario_sistema').delete().eq('id', id)
-    toast({ title: 'Usuário excluído' })
-    fetchProfiles()
+    try {
+      await pb.collection('users').delete(id)
+      toast({ title: 'Usuário excluído' })
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
   }
 
   const handleSaveWitness = async () => {
-    const payload = {
-      nome: witnessData.nome,
-      cpf: witnessData.cpf,
-      rg: witnessData.rg,
-      assinatura_url: witnessData.assinatura_url,
-    }
+    try {
+      const fd = new FormData()
+      fd.append('name', witnessData.name)
+      fd.append('cpf', witnessData.cpf)
+      fd.append('rg', witnessData.rg)
+      if (files.witness) fd.append('signature', files.witness)
 
-    let error
-    if (witnessData.id) {
-      const { error: err } = await supabase
-        .from('testemunhas' as any)
-        .update(payload)
-        .eq('id', witnessData.id)
-      error = err
-    } else {
-      const { error: err } = await supabase.from('testemunhas' as any).insert(payload)
-      error = err
-    }
+      if (witnessData.id) {
+        await pb.collection('witnesses').update(witnessData.id, fd)
+      } else {
+        await pb.collection('witnesses').create(fd)
+      }
 
-    if (!error) {
-      toast({ title: 'Sucesso', description: 'Testemunha salva com sucesso.' })
+      toast({ title: 'Sucesso', description: 'Testemunha salva.' })
       setIsWitnessOpen(false)
-      fetchWitnesses()
-    } else {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      setFiles({})
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
-  }
-
-  const handleUploadWitness = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    toast({ title: 'Enviando assinatura...', description: 'Aguarde o upload.' })
-    const fileExt = file.name.split('.').pop()
-    const fileName = `assinatura_test_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-    const filePath = `assinaturas_usuarios/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('rh_files')
-      .upload(filePath, file, { upsert: true })
-
-    if (uploadError) {
-      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
-      return
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('rh_files').getPublicUrl(filePath)
-    setWitnessData({ ...witnessData, assinatura_url: publicUrl })
-    toast({ title: 'Upload concluído', description: 'Assinatura carregada com sucesso.' })
   }
 
   const handleSavePointRules = async () => {
     if (!user) return
-    const { error } = await supabase
-      .from('user_settings')
-      .update({
-        configuracoes_ponto: pointRules,
-      } as any)
-      .eq('user_id', user.id)
+    try {
+      const currentUser = await pb.collection('users').getOne(user.id)
+      const currentSettings = currentUser.settings || {}
 
-    if (!error) {
+      await pb.collection('users').update(user.id, {
+        settings: {
+          ...currentSettings,
+          configuracoes_ponto: pointRules,
+        },
+      })
       toast({ title: 'Sucesso', description: 'Regras de ponto salvas com sucesso.' })
-    } else {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
+  }
+
+  const handleFile = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    key: 'user' | 'new_user' | 'witness',
+  ) => {
+    const f = e.target.files?.[0]
+    if (f) setFiles((prev) => ({ ...prev, [key]: f }))
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto p-4">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-lg font-medium">{error}</p>
+        <Button onClick={fetchData}>Tentar novamente</Button>
+      </div>
+    )
   }
 
   return (
@@ -329,7 +262,12 @@ export default function Settings() {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-primary">Usuários Cadastrados</h2>
             {isAdmin && (
-              <Button onClick={() => setIsAddOpen(true)}>
+              <Button
+                onClick={() => {
+                  setIsAddOpen(true)
+                  setFiles({})
+                }}
+              >
                 <Plus className="h-4 w-4 mr-2" /> Novo Usuário
               </Button>
             )}
@@ -350,23 +288,23 @@ export default function Settings() {
                 <TableBody>
                   {profiles.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.nome_completo}</TableCell>
+                      <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell>{p.email}</TableCell>
                       <TableCell>{p.cpf}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {p.tipo_usuario === 'Admin' ? (
+                          {p.role === 'Admin' ? (
                             <Shield className="h-4 w-4 text-primary" />
                           ) : (
                             <UserIcon className="h-4 w-4" />
                           )}
-                          {p.tipo_usuario}
+                          {p.role}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {p.assinatura_url ? (
+                        {p.signature ? (
                           <img
-                            src={p.assinatura_url}
+                            src={pb.files.getUrl(p, p.signature)}
                             className="h-8 border p-1 bg-white object-contain"
                             alt="Assinatura"
                           />
@@ -380,8 +318,15 @@ export default function Settings() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              setFormData({ ...p, cpf: p.cpf || '', email: p.email || '' })
+                              setFormData({
+                                id: p.id,
+                                name: p.name,
+                                cpf: p.cpf || '',
+                                email: p.email || '',
+                                role: p.role,
+                              })
                               setNewPassword('')
+                              setFiles({})
                               setIsOpen(true)
                             }}
                           >
@@ -412,7 +357,8 @@ export default function Settings() {
             <h2 className="text-xl font-bold text-primary">Testemunhas Cadastradas</h2>
             <Button
               onClick={() => {
-                setWitnessData({ id: '', nome: '', cpf: '', rg: '', assinatura_url: '' })
+                setWitnessData({ id: '', name: '', cpf: '', rg: '' })
+                setFiles({})
                 setIsWitnessOpen(true)
               }}
             >
@@ -434,13 +380,13 @@ export default function Settings() {
                 <TableBody>
                   {witnesses.map((w) => (
                     <TableRow key={w.id}>
-                      <TableCell className="font-medium">{w.nome}</TableCell>
+                      <TableCell className="font-medium">{w.name}</TableCell>
                       <TableCell>{w.cpf}</TableCell>
                       <TableCell>{w.rg}</TableCell>
                       <TableCell>
-                        {w.assinatura_url ? (
+                        {w.signature ? (
                           <img
-                            src={w.assinatura_url}
+                            src={pb.files.getUrl(w, w.signature)}
                             className="h-8 border p-1 bg-white object-contain"
                             alt="Assinatura"
                           />
@@ -453,13 +399,8 @@ export default function Settings() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setWitnessData({
-                              id: w.id,
-                              nome: w.nome,
-                              cpf: w.cpf,
-                              rg: w.rg || '',
-                              assinatura_url: w.assinatura_url || '',
-                            })
+                            setWitnessData({ id: w.id, name: w.name, cpf: w.cpf, rg: w.rg || '' })
+                            setFiles({})
                             setIsWitnessOpen(true)
                           }}
                         >
@@ -471,11 +412,8 @@ export default function Settings() {
                           className="text-destructive"
                           onClick={async () => {
                             if (confirm('Deseja excluir esta testemunha?')) {
-                              await supabase
-                                .from('testemunhas' as any)
-                                .delete()
-                                .eq('id', w.id)
-                              fetchWitnesses()
+                              await pb.collection('witnesses').delete(w.id)
+                              fetchData()
                             }
                           }}
                         >
@@ -591,22 +529,16 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Assinatura (Imagem PNG p/ PDFs)</Label>
               <div className="flex items-center gap-4">
-                {newUserData.assinatura_url && (
-                  <img
-                    src={newUserData.assinatura_url}
-                    className="h-10 border p-1 bg-white"
-                    alt="Assinatura"
-                  />
-                )}
                 <Button variant="outline" className="relative">
                   <Upload className="h-4 w-4 mr-2" /> Upload{' '}
                   <input
                     type="file"
-                    className="absolute inset-0 opacity-0"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                     accept="image/*"
-                    onChange={handleUploadNewUserSignature}
+                    onChange={(e) => handleFile(e, 'new_user')}
                   />
                 </Button>
+                {files.new_user && <span className="text-xs">{files.new_user.name}</span>}
               </div>
             </div>
           </div>
@@ -633,8 +565,8 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
-                value={formData.nome_completo}
-                onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -650,14 +582,13 @@ export default function Settings() {
               <Input
                 value={formData.cpf}
                 onChange={(e) => setFormData({ ...formData, cpf: maskCPF(e.target.value) })}
-                placeholder=""
               />
             </div>
             <div className="space-y-2">
               <Label>Perfil de Acesso</Label>
               <Select
-                value={formData.tipo_usuario}
-                onValueChange={(v) => setFormData({ ...formData, tipo_usuario: v })}
+                value={formData.role}
+                onValueChange={(v) => setFormData({ ...formData, role: v })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -682,22 +613,16 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Assinatura (Imagem PNG p/ PDFs)</Label>
               <div className="flex items-center gap-4">
-                {formData.assinatura_url && (
-                  <img
-                    src={formData.assinatura_url}
-                    className="h-10 border p-1 bg-white"
-                    alt="Assinatura"
-                  />
-                )}
                 <Button variant="outline" className="relative">
                   <Upload className="h-4 w-4 mr-2" /> Upload{' '}
                   <input
                     type="file"
-                    className="absolute inset-0 opacity-0"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                     accept="image/*"
-                    onChange={handleUpload}
+                    onChange={(e) => handleFile(e, 'user')}
                   />
                 </Button>
+                {files.user && <span className="text-xs">{files.user.name}</span>}
               </div>
             </div>
           </div>
@@ -719,8 +644,8 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Nome Completo</Label>
               <Input
-                value={witnessData.nome}
-                onChange={(e) => setWitnessData({ ...witnessData, nome: e.target.value })}
+                value={witnessData.name}
+                onChange={(e) => setWitnessData({ ...witnessData, name: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -742,22 +667,16 @@ export default function Settings() {
             <div className="space-y-2">
               <Label>Assinatura (Imagem PNG p/ PDFs)</Label>
               <div className="flex items-center gap-4">
-                {witnessData.assinatura_url && (
-                  <img
-                    src={witnessData.assinatura_url}
-                    className="h-10 border p-1 bg-white"
-                    alt="Assinatura"
-                  />
-                )}
                 <Button variant="outline" className="relative">
                   <Upload className="h-4 w-4 mr-2" /> Upload{' '}
                   <input
                     type="file"
-                    className="absolute inset-0 opacity-0"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                     accept="image/*"
-                    onChange={handleUploadWitness}
+                    onChange={(e) => handleFile(e, 'witness')}
                   />
                 </Button>
+                {files.witness && <span className="text-xs">{files.witness.name}</span>}
               </div>
             </div>
           </div>
@@ -765,7 +684,7 @@ export default function Settings() {
             <Button variant="outline" onClick={() => setIsWitnessOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveWitness} disabled={!witnessData.nome || !witnessData.cpf}>
+            <Button onClick={handleSaveWitness} disabled={!witnessData.name || !witnessData.cpf}>
               Salvar Testemunha
             </Button>
           </DialogFooter>

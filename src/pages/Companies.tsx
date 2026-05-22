@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +19,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
-import { Building2, Plus, Edit2, Upload } from 'lucide-react'
+import { Building2, Plus, Edit2, Upload, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { logAudit } from '@/lib/audit'
 import { maskCNPJ, maskCPF, maskIE, maskIM } from '@/lib/utils'
@@ -29,23 +30,34 @@ export default function Companies() {
   const { user } = useAuth()
   const [companies, setCompanies] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     id: '',
-    razao_social: '',
-    nome_fantasia: '',
+    corporate_name: '',
+    name: '',
     cnpj: '',
-    inscricao_estadual: '',
-    inscricao_municipal: '',
-    nome_responsavel: '',
-    cpf_responsavel: '',
-    logo_url: '',
-    assinatura_responsavel_url: '',
+    state_registration: '',
+    municipal_registration: '',
+    responsible_name: '',
+    responsible_cpf: '',
   })
+
+  const [files, setFiles] = useState<{ logo?: File; signature?: File }>({})
   const { toast } = useToast()
 
   const fetchCompanies = async () => {
-    const { data } = await supabase.from('empresa_contratante').select('*').order('nome_fantasia')
-    if (data) setCompanies(data)
+    setLoading(true)
+    setError(null)
+    try {
+      const records = await pb.collection('companies').getFullList({ sort: 'name' })
+      setCompanies(records)
+    } catch (err: any) {
+      setError('Erro ao carregar as empresas: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -53,60 +65,66 @@ export default function Companies() {
   }, [])
 
   const handleSave = async () => {
-    const payload = {
-      razao_social: formData.razao_social,
-      nome_fantasia: formData.nome_fantasia,
-      cnpj: formData.cnpj,
-      inscricao_estadual: formData.inscricao_estadual || null,
-      inscricao_municipal: formData.inscricao_municipal || null,
-      nome_responsavel: formData.nome_responsavel,
-      cpf_responsavel: formData.cpf_responsavel,
-      logo_url: formData.logo_url || null,
-      assinatura_responsavel_url: formData.assinatura_responsavel_url || null,
-      endereco: {},
-      header_template: {},
-      ativa: true,
-    }
+    try {
+      const form = new FormData()
+      form.append('name', formData.name)
+      form.append('corporate_name', formData.corporate_name)
+      form.append('cnpj', formData.cnpj)
+      form.append('state_registration', formData.state_registration)
+      form.append('municipal_registration', formData.municipal_registration)
+      form.append('responsible_name', formData.responsible_name)
+      form.append('responsible_cpf', formData.responsible_cpf)
+      form.append('active', 'true')
+      if (user) form.append('user_id', user.id)
 
-    if (formData.id) {
-      await supabase.from('empresa_contratante').update(payload).eq('id', formData.id)
-      if (user) logAudit('empresa_contratante', formData.id, 'update', user.id, null, payload)
-    } else {
-      const { data } = await supabase.from('empresa_contratante').insert(payload).select().single()
-      if (data && user) logAudit('empresa_contratante', data.id, 'create', user.id, null, payload)
-    }
+      if (files.logo) form.append('logo', files.logo)
+      if (files.signature) form.append('signature', files.signature)
 
-    toast({ title: 'Sucesso', description: 'Empresa salva com sucesso.' })
-    setIsOpen(false)
-    fetchCompanies()
+      let savedRecord
+      if (formData.id) {
+        savedRecord = await pb.collection('companies').update(formData.id, form)
+        if (user) logAudit('companies', formData.id, 'update', user.id, null, formData)
+      } else {
+        savedRecord = await pb.collection('companies').create(form)
+        if (user) logAudit('companies', savedRecord.id, 'create', user.id, null, formData)
+      }
+
+      toast({ title: 'Sucesso', description: 'Empresa salva com sucesso.' })
+      setIsOpen(false)
+      fetchCompanies()
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
+    }
   }
 
-  const handleUpload = async (
+  const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    field: 'logo_url' | 'assinatura_responsavel_url',
+    field: 'logo' | 'signature',
   ) => {
     const file = e.target.files?.[0]
-    if (!file) return
-
-    toast({ title: 'Fazendo upload...', description: 'Aguarde o processamento.' })
-    const fileExt = file.name.split('.').pop()
-    const fileName = `empresa_${field}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-    const filePath = `empresas/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('rh_files')
-      .upload(filePath, file, { upsert: true })
-
-    if (uploadError) {
-      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
-      return
+    if (file) {
+      setFiles((prev) => ({ ...prev, [field]: file }))
+      toast({ title: 'Arquivo selecionado', description: file.name })
     }
+  }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('rh_files').getPublicUrl(filePath)
-    setFormData({ ...formData, [field]: publicUrl })
-    toast({ title: 'Upload concluído', description: 'Arquivo salvo com sucesso.' })
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-lg font-medium">{error}</p>
+        <Button onClick={fetchCompanies}>Tentar novamente</Button>
+      </div>
+    )
   }
 
   return (
@@ -120,16 +138,15 @@ export default function Companies() {
           onClick={() => {
             setFormData({
               id: '',
-              razao_social: '',
-              nome_fantasia: '',
+              corporate_name: '',
+              name: '',
               cnpj: '',
-              inscricao_estadual: '',
-              inscricao_municipal: '',
-              nome_responsavel: '',
-              cpf_responsavel: '',
-              logo_url: '',
-              assinatura_responsavel_url: '',
+              state_registration: '',
+              municipal_registration: '',
+              responsible_name: '',
+              responsible_cpf: '',
             })
+            setFiles({})
             setIsOpen(true)
           }}
         >
@@ -137,70 +154,86 @@ export default function Companies() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead>Logo</TableHead>
-                <TableHead>Nome Fantasia</TableHead>
-                <TableHead>Razão Social</TableHead>
-                <TableHead>CNPJ</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {companies.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    {c.logo_url ? (
-                      <img src={c.logo_url} className="h-8 object-contain" alt="logo" />
-                    ) : (
-                      <Building2 className="h-6 w-6 text-muted-foreground" />
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{c.nome_fantasia}</TableCell>
-                  <TableCell>{c.razao_social}</TableCell>
-                  <TableCell>{c.cnpj}</TableCell>
-                  <TableCell>{c.nome_responsavel}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setFormData(c)
-                        setIsOpen(true)
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+      {companies.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-muted/10 rounded-lg border border-dashed mt-6">
+          <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-lg font-medium">Nenhum registro encontrado</p>
+          <p className="text-muted-foreground mb-4">Cadastre a primeira empresa para começar.</p>
+          <Button onClick={() => setIsOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Adicionar
+          </Button>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead>Logo</TableHead>
+                  <TableHead>Nome Fantasia</TableHead>
+                  <TableHead>Razão Social</TableHead>
+                  <TableHead>CNPJ</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {companies.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      {c.logo ? (
+                        <img
+                          src={pb.files.getUrl(c, c.logo)}
+                          className="h-8 object-contain"
+                          alt="logo"
+                        />
+                      ) : (
+                        <Building2 className="h-6 w-6 text-muted-foreground" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>{c.corporate_name}</TableCell>
+                    <TableCell>{c.cnpj}</TableCell>
+                    <TableCell>{c.responsible_name}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setFormData({ ...c })
+                          setFiles({})
+                          setIsOpen(true)
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Editar Empresa</DialogTitle>
+            <DialogTitle>{formData.id ? 'Editar Empresa' : 'Nova Empresa'}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Razão Social</Label>
               <Input
-                value={formData.razao_social}
-                onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                value={formData.corporate_name}
+                onChange={(e) => setFormData({ ...formData, corporate_name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>Nome Fantasia</Label>
               <Input
-                value={formData.nome_fantasia}
-                onChange={(e) => setFormData({ ...formData, nome_fantasia: e.target.value })}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -213,34 +246,34 @@ export default function Companies() {
             <div className="space-y-2">
               <Label>Inscrição Estadual</Label>
               <Input
-                value={formData.inscricao_estadual}
+                value={formData.state_registration}
                 onChange={(e) =>
-                  setFormData({ ...formData, inscricao_estadual: maskIE(e.target.value) })
+                  setFormData({ ...formData, state_registration: maskIE(e.target.value) })
                 }
               />
             </div>
             <div className="space-y-2">
               <Label>Inscrição Municipal</Label>
               <Input
-                value={formData.inscricao_municipal}
+                value={formData.municipal_registration}
                 onChange={(e) =>
-                  setFormData({ ...formData, inscricao_municipal: maskIM(e.target.value) })
+                  setFormData({ ...formData, municipal_registration: maskIM(e.target.value) })
                 }
               />
             </div>
             <div className="space-y-2">
               <Label>Nome do Responsável</Label>
               <Input
-                value={formData.nome_responsavel}
-                onChange={(e) => setFormData({ ...formData, nome_responsavel: e.target.value })}
+                value={formData.responsible_name}
+                onChange={(e) => setFormData({ ...formData, responsible_name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label>CPF do Responsável</Label>
               <Input
-                value={formData.cpf_responsavel}
+                value={formData.responsible_cpf}
                 onChange={(e) =>
-                  setFormData({ ...formData, cpf_responsavel: maskCPF(e.target.value) })
+                  setFormData({ ...formData, responsible_cpf: maskCPF(e.target.value) })
                 }
               />
             </div>
@@ -248,39 +281,37 @@ export default function Companies() {
             <div className="space-y-2">
               <Label>Logotipo (Timbre)</Label>
               <div className="flex gap-2 items-center">
-                {formData.logo_url && (
-                  <img src={formData.logo_url} className="h-8 border p-1" alt="logo" />
-                )}
                 <Button variant="outline" className="relative text-xs">
-                  <Upload className="h-3 w-3 mr-1" /> Upload
+                  <Upload className="h-3 w-3 mr-1" /> {files.logo ? 'Alterar' : 'Upload'}
                   <input
                     type="file"
-                    className="absolute inset-0 opacity-0"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                     accept="image/*"
-                    onChange={(e) => handleUpload(e, 'logo_url')}
+                    onChange={(e) => handleFileChange(e, 'logo')}
                   />
                 </Button>
+                {files.logo && (
+                  <span className="text-xs text-muted-foreground truncate">{files.logo.name}</span>
+                )}
               </div>
             </div>
             <div className="space-y-2">
               <Label>Assinatura Responsável</Label>
               <div className="flex gap-2 items-center">
-                {formData.assinatura_responsavel_url && (
-                  <img
-                    src={formData.assinatura_responsavel_url}
-                    className="h-8 border p-1"
-                    alt="assinatura"
-                  />
-                )}
                 <Button variant="outline" className="relative text-xs">
-                  <Upload className="h-3 w-3 mr-1" /> Upload
+                  <Upload className="h-3 w-3 mr-1" /> {files.signature ? 'Alterar' : 'Upload'}
                   <input
                     type="file"
-                    className="absolute inset-0 opacity-0"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                     accept="image/*"
-                    onChange={(e) => handleUpload(e, 'assinatura_responsavel_url')}
+                    onChange={(e) => handleFileChange(e, 'signature')}
                   />
                 </Button>
+                {files.signature && (
+                  <span className="text-xs text-muted-foreground truncate">
+                    {files.signature.name}
+                  </span>
+                )}
               </div>
             </div>
           </div>

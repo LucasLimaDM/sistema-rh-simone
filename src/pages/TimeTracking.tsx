@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -38,7 +39,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Download, Send, Save, Check, ChevronsUpDown } from 'lucide-react'
+import { Download, Send, Save, Check, ChevronsUpDown, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { format, getDaysInMonth, isWeekend } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -81,7 +82,6 @@ function calculateHours(in1: string, out1: string, in2: string, out2: string, ru
     let gross = end - start
     const desconto = rules?.desconto_almoco !== undefined ? parseFloat(rules.desconto_almoco) : 1
 
-    // Desconta o almoço se a jornada for razoavelmente longa (ex: 5h ou mais)
     if (gross >= 5 && desconto > 0) {
       gross -= desconto
     }
@@ -106,6 +106,8 @@ export default function TimeTracking() {
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'))
   const [grid, setGrid] = useState<any[]>([])
   const [pointRules, setPointRules] = useState<any>({ desconto_almoco: 1 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   const currentYear = new Date().getFullYear()
@@ -123,57 +125,56 @@ export default function TimeTracking() {
     return list
   }, [currentYear])
 
-  useEffect(() => {
-    if (user) {
-      supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-        .then(({ data }) => {
-          if ((data as any)?.configuracoes_ponto) {
-            setPointRules((data as any).configuracoes_ponto)
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      if (user) {
+        try {
+          const userRec = await pb.collection('users').getOne(user.id)
+          if (userRec.settings?.configuracoes_ponto) {
+            setPointRules(userRec.settings.configuracoes_ponto)
           }
+        } catch {
+          /* intentionally ignored */
+        } // ignore if settings fail
+      }
+
+      const empList = await pb.collection('companies').getFullList({ filter: `name="${company}"` })
+      const empData = empList[0]
+      if (empData) {
+        const data = await pb.collection('collaborators').getFullList({
+          filter: `company_id="${empData.id}"`,
+          expand: 'role_id',
+          sort: 'name',
         })
+        if (data) {
+          setEmployees(
+            data.map((e: any) => {
+              const roleInfo = e.expand?.role_id || {}
+              return {
+                id: e.id,
+                name: e.name,
+                role: roleInfo.title || 'Sem Cargo',
+                hr_roles: {
+                  hourly_rate: roleInfo.hourly_rate || 0,
+                  daily_rate: roleInfo.daily_rate || 0,
+                },
+              }
+            }),
+          )
+        }
+      }
+    } catch (err: any) {
+      setError('Erro ao carregar dados: ' + err.message)
+    } finally {
+      setLoading(false)
     }
-  }, [user])
+  }
 
   useEffect(() => {
-    supabase
-      .from('empresa_contratante')
-      .select('id')
-      .eq('nome_fantasia', company)
-      .single()
-      .then(({ data: empData }) => {
-        if (empData) {
-          supabase
-            .from('colaborador')
-            .select(
-              'id, nome_completo, cargo_nome_snapshot, valor_hora_snapshot, valor_diaria_snapshot, cargo(valor_hora, valor_diaria)',
-            )
-            .eq('empresa_id', empData.id)
-            .order('nome_completo')
-            .then(({ data }) => {
-              if (data) {
-                setEmployees(
-                  data.map((e: any) => {
-                    const cargoObj = Array.isArray(e.cargo) ? e.cargo[0] : e.cargo
-                    return {
-                      id: e.id,
-                      name: e.nome_completo,
-                      role: e.cargo_nome_snapshot,
-                      hr_roles: {
-                        hourly_rate: cargoObj?.valor_hora || e.valor_hora_snapshot || 0,
-                        daily_rate: cargoObj?.valor_diaria || e.valor_diaria_snapshot || 0,
-                      },
-                    }
-                  }),
-                )
-              }
-            })
-        }
-      })
-  }, [company])
+    fetchData()
+  }, [company, user])
 
   useEffect(() => {
     if (!selectedEmpId || !month || !pointRules) return
@@ -186,50 +187,53 @@ export default function TimeTracking() {
     const monthNum = parseInt(m)
     const daysCount = getDaysInMonth(new Date(yearNum, monthNum - 1))
 
-    const startDate = `${month}-01`
-    const endDate = `${month}-${String(daysCount).padStart(2, '0')}`
+    const startDate = `${month}-01 00:00:00`
+    const endDate = `${month}-${String(daysCount).padStart(2, '0')} 23:59:59`
 
-    const { data: tracks } = await supabase
-      .from('time_tracks')
-      .select('*')
-      .eq('employee_id', selectedEmpId)
-      .gte('track_date', startDate)
-      .lte('track_date', endDate)
-
-    const trackMap = new Map()
-    if (tracks) tracks.forEach((t) => trackMap.set(t.track_date, t))
-
-    const holidays = getHolidays(yearNum)
-    const todayStr = format(new Date(), 'yyyy-MM-dd')
-
-    const newGrid = []
-    for (let d = 1; d <= daysCount; d++) {
-      const dateStr = `${month}-${String(d).padStart(2, '0')}`
-      const dateObj = new Date(yearNum, monthNum - 1, d)
-      const existing = trackMap.get(dateStr)
-
-      const in1 = existing?.in1?.slice(0, 5) || ''
-      const out1 = existing?.out1?.slice(0, 5) || ''
-      const in2 = existing?.in2?.slice(0, 5) || ''
-      const out2 = existing?.out2?.slice(0, 5) || ''
-      const calculated = calculateHours(in1, out1, in2, out2, pointRules)
-
-      newGrid.push({
-        date: dateStr,
-        dateObj,
-        isWeekend: isWeekend(dateObj),
-        isHoliday: holidays.includes(dateStr),
-        isToday: dateStr === todayStr,
-        id: existing?.id,
-        in1,
-        out1,
-        in2,
-        out2,
-        total_hours: calculated,
-        saving: false,
+    try {
+      const tracks = await pb.collection('work_scales').getFullList({
+        filter: `collaborator_id="${selectedEmpId}" && date >= "${startDate}" && date <= "${endDate}"`,
       })
+
+      const trackMap = new Map()
+      if (tracks) {
+        tracks.forEach((t) => trackMap.set(t.date.substring(0, 10), t))
+      }
+
+      const holidays = getHolidays(yearNum)
+      const todayStr = format(new Date(), 'yyyy-MM-dd')
+
+      const newGrid = []
+      for (let d = 1; d <= daysCount; d++) {
+        const dateStr = `${month}-${String(d).padStart(2, '0')}`
+        const dateObj = new Date(yearNum, monthNum - 1, d)
+        const existing = trackMap.get(dateStr)
+
+        const in1 = existing?.in1?.slice(0, 5) || ''
+        const out1 = existing?.out1?.slice(0, 5) || ''
+        const in2 = existing?.in2?.slice(0, 5) || ''
+        const out2 = existing?.out2?.slice(0, 5) || ''
+        const calculated = calculateHours(in1, out1, in2, out2, pointRules)
+
+        newGrid.push({
+          date: dateStr,
+          dateObj,
+          isWeekend: isWeekend(dateObj),
+          isHoliday: holidays.includes(dateStr),
+          isToday: dateStr === todayStr,
+          id: existing?.id,
+          in1,
+          out1,
+          in2,
+          out2,
+          total_hours: calculated,
+          saving: false,
+        })
+      }
+      setGrid(newGrid)
+    } catch (err: any) {
+      toast({ title: 'Erro ao carregar escalas', description: err.message, variant: 'destructive' })
     }
-    setGrid(newGrid)
   }
 
   const selectedEmpData = employees.find((e) => e.id === selectedEmpId)
@@ -271,7 +275,6 @@ export default function TimeTracking() {
 
   const handleBlur = async (index: number) => {
     const row = grid[index]
-
     if (!row.in1 && !row.out1 && !row.in2 && !row.out2 && !row.id) return
 
     const newGrid = [...grid]
@@ -279,29 +282,52 @@ export default function TimeTracking() {
     setGrid(newGrid)
 
     const payload = {
-      employee_id: selectedEmpId,
-      track_date: row.date,
-      in1: row.in1 || null,
-      out1: row.out1 || null,
-      in2: row.in2 || null,
-      out2: row.out2 || null,
-      total_hours: parseFloat(row.total_hours.toFixed(2)),
+      collaborator_id: selectedEmpId,
+      date: `${row.date} 12:00:00.000Z`,
+      in1: row.in1 || '',
+      out1: row.out1 || '',
+      in2: row.in2 || '',
+      out2: row.out2 || '',
+      hours: parseFloat(row.total_hours.toFixed(2)),
     }
 
-    if (row.id) {
-      if (!row.in1 && !row.out1 && !row.in2 && !row.out2) {
-        await supabase.from('time_tracks').delete().eq('id', row.id)
-        newGrid[index].id = undefined
+    try {
+      if (row.id) {
+        if (!row.in1 && !row.out1 && !row.in2 && !row.out2) {
+          await pb.collection('work_scales').delete(row.id)
+          newGrid[index].id = undefined
+        } else {
+          await pb.collection('work_scales').update(row.id, payload)
+        }
       } else {
-        await supabase.from('time_tracks').update(payload).eq('id', row.id)
+        const data = await pb.collection('work_scales').create(payload)
+        if (data) newGrid[index].id = data.id
       }
-    } else {
-      const { data } = await supabase.from('time_tracks').insert(payload).select('id').single()
-      if (data) newGrid[index].id = data.id
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar turno', description: err.message, variant: 'destructive' })
     }
 
     newGrid[index].saving = false
     setGrid(newGrid)
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-[200px] w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-lg font-medium">{error}</p>
+        <Button onClick={fetchData}>Tentar novamente</Button>
+      </div>
+    )
   }
 
   return (

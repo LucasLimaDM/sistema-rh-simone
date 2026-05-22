@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { AppContextType } from '@/lib/types'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -14,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Trash2, Plus, ArrowLeft, Edit2 } from 'lucide-react'
+import { Trash2, Plus, ArrowLeft, Edit2, AlertCircle, Briefcase } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
@@ -29,22 +30,31 @@ export default function Roles() {
   const [hourlyRate, setHourlyRate] = useState('')
   const [dailyRate, setDailyRate] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   const fetchRoles = async () => {
-    const { data: empData } = await supabase
-      .from('empresa_contratante')
-      .select('id')
-      .eq('nome_fantasia', company)
-      .single()
-    if (empData) {
-      setEmpId(empData.id)
-      const { data } = await supabase
-        .from('cargo')
-        .select('*')
-        .eq('empresa_id', empData.id)
-        .order('nome')
-      if (data) setRoles(data)
+    setLoading(true)
+    setError(null)
+    try {
+      const empList = await pb.collection('companies').getFullList({ filter: `name="${company}"` })
+      const empData = empList[0]
+      if (empData) {
+        setEmpId(empData.id)
+        const data = await pb.collection('roles').getFullList({
+          filter: `company_id="${empData.id}"`,
+          sort: 'title',
+        })
+        setRoles(data)
+      } else {
+        setRoles([])
+      }
+    } catch (err: any) {
+      setError('Erro ao buscar cargos: ' + err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -79,58 +89,70 @@ export default function Roles() {
 
   const handleEdit = (r: any) => {
     setEditingId(r.id)
-    setName(r.nome)
-    setHourlyRate(r.valor_hora ? r.valor_hora.toString().replace('.', ',') : '')
-    setDailyRate(r.valor_diaria ? r.valor_diaria.toString().replace('.', ',') : '')
+    setName(r.title)
+    setHourlyRate(r.hourly_rate ? r.hourly_rate.toString().replace('.', ',') : '')
+    setDailyRate(r.daily_rate ? r.daily_rate.toString().replace('.', ',') : '')
   }
 
   const handleSave = async () => {
     if (!name || !empId) return
     const payload = {
-      empresa_id: empId,
-      nome: name,
-      valor_hora: parseFloat(hourlyRate.replace(',', '.')) || 0,
-      valor_diaria: parseFloat(dailyRate.replace(',', '.')) || 0,
-      descricao_rich_text: {},
-      ativo: true,
+      company_id: empId,
+      title: name,
+      hourly_rate: parseFloat(hourlyRate.replace(',', '.')) || 0,
+      daily_rate: parseFloat(dailyRate.replace(',', '.')) || 0,
     }
 
-    const newId = editingId || crypto.randomUUID()
+    try {
+      if (editingId) {
+        await pb.collection('roles').update(editingId, payload)
+        if (user) logAudit('roles', editingId, 'update', user.id, null, payload)
+        toast({ title: 'Cargo atualizado' })
+      } else {
+        const saved = await pb.collection('roles').create(payload)
+        if (user) logAudit('roles', saved.id, 'create', user.id, null, payload)
+        toast({ title: 'Cargo salvo' })
+      }
 
-    if (editingId) {
-      await supabase
-        .from('hr_roles')
-        .update({ name, hourly_rate: payload.valor_hora, daily_rate: payload.valor_diaria })
-        .eq('id', newId)
-      await supabase.from('cargo').update(payload).eq('id', newId)
-      if (user) logAudit('cargo', newId, 'update', user.id, null, payload)
-      toast({ title: 'Cargo atualizado' })
-    } else {
-      await supabase.from('hr_roles').insert({
-        id: newId,
-        company,
-        name,
-        hourly_rate: payload.valor_hora,
-        daily_rate: payload.valor_diaria,
-      })
-      await supabase.from('cargo').insert({ id: newId, ...payload })
-      if (user) logAudit('cargo', newId, 'create', user.id, null, payload)
-      toast({ title: 'Cargo salvo' })
+      setName('')
+      setHourlyRate('')
+      setDailyRate('')
+      setEditingId(null)
+      fetchRoles()
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' })
     }
-
-    setName('')
-    setHourlyRate('')
-    setDailyRate('')
-    setEditingId(null)
-    fetchRoles()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este cargo?')) return
-    await supabase.from('cargo').delete().eq('id', id)
-    await supabase.from('hr_roles').delete().eq('id', id)
-    if (user) logAudit('cargo', id, 'delete', user.id)
-    fetchRoles()
+    try {
+      await pb.collection('roles').delete(id)
+      if (user) logAudit('roles', id, 'delete', user.id)
+      fetchRoles()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-lg font-medium">{error}</p>
+        <Button onClick={fetchRoles}>Tentar novamente</Button>
+      </div>
+    )
   }
 
   return (
@@ -207,46 +229,62 @@ export default function Roles() {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead>Cargo</TableHead>
-              <TableHead>Valor Hora</TableHead>
-              <TableHead>Valor Diária</TableHead>
-              <TableHead className="w-16"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roles.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.nome}</TableCell>
-                <TableCell className="font-mono text-primary">
-                  {r.valor_hora.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </TableCell>
-                <TableCell className="font-mono text-primary">
-                  {r.valor_diaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => handleDelete(r.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+      {roles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-muted/10 rounded-lg border border-dashed">
+          <Briefcase className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-lg font-medium">Nenhum registro encontrado</p>
+          <p className="text-muted-foreground mb-4">
+            Adicione o primeiro cargo no formulário acima.
+          </p>
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead>Cargo</TableHead>
+                <TableHead>Valor Hora</TableHead>
+                <TableHead>Valor Diária</TableHead>
+                <TableHead className="w-16"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+            </TableHeader>
+            <TableBody>
+              {roles.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.title}</TableCell>
+                  <TableCell className="font-mono text-primary">
+                    {Number(r.hourly_rate).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    })}
+                  </TableCell>
+                  <TableCell className="font-mono text-primary">
+                    {Number(r.daily_rate).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        onClick={() => handleDelete(r.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   )
 }

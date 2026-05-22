@@ -1,9 +1,9 @@
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 
 export async function logAudit(
-  entidade: string,
-  entidade_id: string,
-  acao:
+  entity: string,
+  entity_id: string,
+  action:
     | 'create'
     | 'update'
     | 'delete'
@@ -12,18 +12,18 @@ export async function logAudit(
     | 'approve'
     | 'login'
     | 'upload_assinatura',
-  usuario_id: string,
-  antes: any = null,
-  depois: any = null,
+  user_id: string,
+  before: any = null,
+  after: any = null,
 ) {
   try {
-    await supabase.from('auditoria_documento').insert({
-      entidade,
-      entidade_id,
-      acao,
-      usuario_id,
-      antes,
-      depois,
+    await pb.collection('audit_logs').create({
+      entity,
+      entity_id,
+      action,
+      user_id,
+      before,
+      after,
     })
   } catch (e) {
     console.error('Audit error:', e)
