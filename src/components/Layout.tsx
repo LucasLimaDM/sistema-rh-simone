@@ -116,26 +116,40 @@ export function Layout() {
 
     setSaving(true)
     try {
-      const data: Record<string, any> = {
-        name: formData.name.trim(),
-        active: true,
+      const payload = new FormData()
+
+      payload.append('name', formData.name.trim())
+      payload.append('active', 'true')
+
+      if (user?.id) {
+        payload.append('user_id', user.id)
       }
 
-      if (formData.corporate_name.trim()) data.corporate_name = formData.corporate_name.trim()
-      if (formData.cnpj.trim()) data.cnpj = formData.cnpj.trim()
-      if (formData.phone.trim()) data.phone = formData.phone.trim()
-      if (formData.state_registration.trim())
-        data.state_registration = formData.state_registration.trim()
-      if (formData.municipal_registration.trim())
-        data.municipal_registration = formData.municipal_registration.trim()
-      if (formData.responsible_name.trim()) data.responsible_name = formData.responsible_name.trim()
-      if (formData.responsible_cpf.trim()) data.responsible_cpf = formData.responsible_cpf.trim()
-      if (user?.id) data.user_id = user.id
+      const stringFields: (keyof typeof formData)[] = [
+        'corporate_name',
+        'cnpj',
+        'phone',
+        'state_registration',
+        'municipal_registration',
+        'responsible_name',
+        'responsible_cpf',
+      ]
 
-      if (files.logo) data.logo = files.logo
-      if (files.signature) data.signature = files.signature
+      stringFields.forEach((field) => {
+        const val = formData[field]?.trim()
+        if (val) {
+          payload.append(field, val)
+        }
+      })
 
-      await pb.collection('companies').create(data)
+      if (files.logo) {
+        payload.append('logo', files.logo)
+      }
+      if (files.signature) {
+        payload.append('signature', files.signature)
+      }
+
+      await pb.collection('companies').create(payload)
 
       toast({ title: 'Sucesso', description: 'Empresa cadastrada com sucesso!' })
 
