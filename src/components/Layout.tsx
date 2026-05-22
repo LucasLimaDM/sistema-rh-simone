@@ -116,24 +116,27 @@ export function Layout() {
 
     setSaving(true)
     try {
-      const form = new FormData()
-      form.append('name', formData.name)
-      if (formData.corporate_name) form.append('corporate_name', formData.corporate_name)
-      if (formData.cnpj) form.append('cnpj', formData.cnpj)
-      if (formData.phone) form.append('phone', formData.phone)
-      if (formData.state_registration)
-        form.append('state_registration', formData.state_registration)
-      if (formData.municipal_registration)
-        form.append('municipal_registration', formData.municipal_registration)
-      if (formData.responsible_name) form.append('responsible_name', formData.responsible_name)
-      if (formData.responsible_cpf) form.append('responsible_cpf', formData.responsible_cpf)
-      form.append('active', 'true')
-      if (user?.id) form.append('user_id', user.id)
+      const data: Record<string, any> = {
+        name: formData.name.trim(),
+        active: true,
+      }
 
-      if (files.logo) form.append('logo', files.logo)
-      if (files.signature) form.append('signature', files.signature)
+      if (formData.corporate_name.trim()) data.corporate_name = formData.corporate_name.trim()
+      if (formData.cnpj.trim()) data.cnpj = formData.cnpj.trim()
+      if (formData.phone.trim()) data.phone = formData.phone.trim()
+      if (formData.state_registration.trim())
+        data.state_registration = formData.state_registration.trim()
+      if (formData.municipal_registration.trim())
+        data.municipal_registration = formData.municipal_registration.trim()
+      if (formData.responsible_name.trim()) data.responsible_name = formData.responsible_name.trim()
+      if (formData.responsible_cpf.trim()) data.responsible_cpf = formData.responsible_cpf.trim()
+      if (user?.id) data.user_id = user.id
 
-      await pb.collection('companies').create(form)
+      if (files.logo) data.logo = files.logo
+      if (files.signature) data.signature = files.signature
+
+      await pb.collection('companies').create(data)
+
       toast({ title: 'Sucesso', description: 'Empresa cadastrada com sucesso!' })
 
       // Update the state immediately
@@ -141,7 +144,8 @@ export function Layout() {
     } catch (err: any) {
       const fieldErrs = extractFieldErrors(err)
       setFormErrors(fieldErrs)
-      const errorMsg = Object.values(fieldErrs).join(' ') || err.message || 'Erro desconhecido.'
+      const errorMsg =
+        Object.values(fieldErrs).join(' ') || err.message || 'Verifique os campos do formulário.'
       toast({ title: 'Erro ao salvar', description: errorMsg, variant: 'destructive' })
     } finally {
       setSaving(false)
@@ -315,6 +319,9 @@ export function Layout() {
                   setFormData({ ...formData, state_registration: maskIE(e.target.value) })
                 }
               />
+              {formErrors.state_registration && (
+                <p className="text-xs text-destructive">{formErrors.state_registration}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Inscrição Municipal</Label>
@@ -324,6 +331,9 @@ export function Layout() {
                   setFormData({ ...formData, municipal_registration: maskIM(e.target.value) })
                 }
               />
+              {formErrors.municipal_registration && (
+                <p className="text-xs text-destructive">{formErrors.municipal_registration}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Nome do Responsável</Label>
@@ -331,6 +341,9 @@ export function Layout() {
                 value={formData.responsible_name}
                 onChange={(e) => setFormData({ ...formData, responsible_name: e.target.value })}
               />
+              {formErrors.responsible_name && (
+                <p className="text-xs text-destructive">{formErrors.responsible_name}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>CPF do Responsável</Label>
@@ -341,12 +354,15 @@ export function Layout() {
                 }
                 placeholder="000.000.000-00"
               />
+              {formErrors.responsible_cpf && (
+                <p className="text-xs text-destructive">{formErrors.responsible_cpf}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Logotipo</Label>
               <div className="flex gap-2 items-center">
-                <Button variant="outline" className="relative text-xs">
+                <Button type="button" variant="outline" className="relative text-xs">
                   <Upload className="h-3 w-3 mr-1" /> {files.logo ? 'Alterar' : 'Upload'}
                   <input
                     type="file"
@@ -361,11 +377,12 @@ export function Layout() {
                   </span>
                 )}
               </div>
+              {formErrors.logo && <p className="text-xs text-destructive">{formErrors.logo}</p>}
             </div>
             <div className="space-y-2">
               <Label>Assinatura Responsável</Label>
               <div className="flex gap-2 items-center">
-                <Button variant="outline" className="relative text-xs">
+                <Button type="button" variant="outline" className="relative text-xs">
                   <Upload className="h-3 w-3 mr-1" /> {files.signature ? 'Alterar' : 'Upload'}
                   <input
                     type="file"
@@ -380,6 +397,9 @@ export function Layout() {
                   </span>
                 )}
               </div>
+              {formErrors.signature && (
+                <p className="text-xs text-destructive">{formErrors.signature}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
